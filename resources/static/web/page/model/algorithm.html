@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>算法配置</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>算法配置</h2>
+            <div class="desc">财务分析算法全部以配置方式维护：表达式引用数据仓库编码，可配置预警标准、主要因素与调整建议</div>
+        </div>
+    </div>
+    <div class="tip">表达式语法：<code>{编码}</code> 取默认取数类型值，<code>{编码@NC}</code> 指定取数类型（NC年初/QM期末/BJ本期/SQ上期）；
+        支持 <code>+ - * / ( )</code>、比较运算与函数 <code>SUM/AVG/MIN/MAX/ABS/ROUND/SQRT/IF/SAFEDIV/LINEAR</code>。
+        例：流动比率 <code>{A013}/{A047}</code>。</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="host"></div>
+</div>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var types = [
+        {value: 'RATIO', text: '比率分析'},
+        {value: 'DUPONT', text: '杜邦分析'},
+        {value: 'WARN', text: '资金预警'},
+        {value: 'PREDICT', text: '预测模型'}
+    ];
+    var host = Cw.el('#host');
+    var current = 'RATIO';
+    Cw.el('#tabs').innerHTML = types.map(function (t) {
+        return '<div class="tab" data-type="' + t.value + '">' + t.text + '</div>';
+    }).join('');
+    Cw.els('#tabs .tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            current = tab.getAttribute('data-type');
+            renderTabs();
+            render();
+        });
+    });
+    function renderTabs() {
+        Cw.els('#tabs .tab').forEach(function (tab) {
+            tab.classList.toggle('active', tab.getAttribute('data-type') === current);
+        });
+    }
+    function render() {
+        host.innerHTML = '';
+        var box = document.createElement('div');
+        host.appendChild(box);
+        Cw.crud({
+            container: box,
+            title: types.filter(function (t) { return t.value === current; })[0].text + '算法',
+            listUrl: '/api/model/mode/list',
+            saveUrl: '/api/model/mode/save',
+            deleteUrl: '/api/model/mode/delete',
+            actionWidth: '150px',
+            columns: [
+                {field: 'modeCode', title: '算法编码', width: '130px'},
+                {field: 'modeName', title: '指标名称'},
+                {field: 'calcExpression', title: '计算表达式'},
+                {field: 'resultCode', title: '结果编码', width: '90px'},
+                {field: 'unit', title: '单位', width: '60px'},
+                {field: 'warnMode', title: '预警方式', width: '90px', render: function (r) {
+                    var map = {up: '高于上限', down: '低于下限', range: '区间外', none: '不预警'};
+                    return Cw.esc(map[r.warnMode] || r.warnMode);
+                }},
+                {field: 'warnLower', title: '下限', align: 'right', render: function (r) { return r.warnLower === null ? '-' : r.warnLower; }},
+                {field: 'warnUpper', title: '上限', align: 'right', render: function (r) { return r.warnUpper === null ? '-' : r.warnUpper; }},
+                {field: 'warnLevel', title: '预警级别', width: '90px', render: function (r) {
+                    return Cw.levelBadge(r.warnLevel, null);
+                }},
+                {field: 'isActive', title: '启用', width: '70px', render: function (r) {
+                    return r.isActive === 1 ? '<span class="badge green">启用</span>' : '<span class="badge grey">停用</span>';
+                }}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑'},
+                {action: 'test', text: '试算', onClick: function (row) {
+                    Api.get('/api/model/mode/test', {expression: row.calcExpression}).then(function (value) {
+                        Cw.modal({
+                            title: '算法试算结果',
+                            hideOk: true,
+                            bodyHtml: '<div style="line-height:2;font-size:14px">'
+                                + '<div>指标名称：<b>' + Cw.esc(row.modeName) + '</b></div>'
+                                + '<div>计算表达式：<code>' + Cw.esc(row.calcExpression) + '</code></div>'
+                                + '<div>试算结果（最新会计年月）：<b style="color:#2f6fed;font-size:18px">'
+                                + Cw.fmtNum(value, row.precisionScale || 2) + ' ' + Cw.esc(row.unit || '') + '</b></div></div>'
+                        });
+                    }).catch(function (e) {
+                        Cw.toast('试算失败: ' + e.message, 'error');
+                    });
+                }},
+                {action: 'delete', text: '删除', className: 'danger'}
+            ],
+            onBeforeSave: function (data) {
+                data.modeType = current;
+                return data;
+            },
+            formFields: [
+                {field: 'modeCode', title: '算法编码', required: true, placeholder: '如 RATIO_LD'},
+                {field: 'modeName', title: '指标名称', required: true, placeholder: '如 流动比率'},
+                {field: 'calcExpression', title: '计算表达式', required: true, placeholder: '如 {A013}/{A047}'},
+                {field: 'resultCode', title: '结果编码', required: true, placeholder: '如 R101'},
+                {field: 'resultName', title: '结果名称', placeholder: '默认与指标名称一致'},
+                {field: 'parentCode', title: '上级指标编码', placeholder: '杜邦分析层级关系使用'},
+                {field: 'unit', title: '单位', type: 'select', defaultValue: '倍',
+                    options: [{value: '倍', text: '倍'}, {value: '%', text: '%（百分比）'}, {value: '次', text: '次'},
+                        {value: '元', text: '元'}, {value: '天', text: '天'}]},
+                {field: 'precisionScale', title: '小数位数', type: 'number', defaultValue: 2},
+                {field: 'warnMode', title: '预警方式', type: 'select', defaultValue: 'none',
+                    options: [{value: 'none', text: '不预警'}, {value: 'up', text: '高于上限预警'},
+                        {value: 'down', text: '低于下限预警'}, {value: 'range', text: '超出区间预警'}]},
+                {field: 'warnLower', title: '预警下限', type: 'number', placeholder: '如 0.07'},
+                {field: 'warnUpper', title: '预警上限', type: 'number', placeholder: '如 0.65'},
+                {field: 'warnLevel', title: '预警级别', type: 'select', defaultValue: 1,
+                    options: [{value: 1, text: '提示'}, {value: 2, text: '警告'}, {value: 3, text: '严重'}]},
+                {field: 'mainFactor', title: '主要因素', type: 'textarea', rows: 2,
+                    placeholder: '影响该指标的主要财务科目与业务因素'},
+                {field: 'advantage', title: '优点', type: 'textarea', rows: 2},
+                {field: 'disadvantage', title: '缺点', type: 'textarea', rows: 2},
+                {field: 'advise', title: '调整建议', type: 'textarea', rows: 2,
+                    placeholder: '指标达到预警警戒线后的调整方向'},
+                {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99},
+                {field: 'isActive', title: '是否启用', type: 'select', defaultValue: 1,
+                    options: [{value: 1, text: '启用'}, {value: 0, text: '停用'}]},
+                {field: 'description', title: '说明', type: 'textarea', rows: 2}
+            ]
+        });
+    }
+    renderTabs();
+    render();
+</script>
+</body>
+</html>

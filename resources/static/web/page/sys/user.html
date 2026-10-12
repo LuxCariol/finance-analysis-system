@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var roles = [];
+    var orgs = [];
+    Promise.all([Api.get('/api/sys/role/list'), Api.get('/api/sys/org/list')]).then(function (results) {
+        roles = results[0] || [];
+        orgs = results[1] || [];
+        render();
+    }).catch(function (e) {
+        document.body.innerHTML = '<div class="empty">加载失败: ' + Cw.esc(e.message) + '</div>';
+    });
+
+    function render() {
+        Cw.crud({
+            title: '用户管理',
+            desc: '维护后台账号、所属公司与角色权限（密码采用 MD5 加盐存储）',
+            listUrl: '/api/sys/user/list',
+            saveUrl: '/api/sys/user/save',
+            deleteUrl: '/api/sys/user/delete',
+            pageList: true,
+            pageSize: 10,
+            actionWidth: '200px',
+            searchFields: [
+                {field: 'accountName', title: '账号名称'},
+                {field: 'userName', title: '用户姓名'}
+            ],
+            columns: [
+                {field: 'id', title: 'ID', width: '60px'},
+                {field: 'accountName', title: '账号'},
+                {field: 'userName', title: '姓名'},
+                {field: 'roleNames', title: '角色'},
+                {field: 'orgName', title: '所属公司'},
+                {field: 'accountPortType', title: '财务系统', width: '100px', render: function (r) {
+                    return r.accountPortType === 2 ? '用友' : '金蝶K8';
+                }},
+                {field: 'locked', title: '状态', width: '80px', render: function (r) {
+                    return r.locked === 1 ? '<span class="badge red">锁定</span>' : '<span class="badge green">正常</span>';
+                }},
+                {field: 'description', title: '说明'},
+                {field: 'createTime', title: '创建时间', width: '160px'}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑', visible: function (row) { return row.accountType !== 0; }},
+                {action: 'reset', text: '重置密码', onClick: function (row) {
+                    Cw.confirm('确定将账号 ' + row.accountName + ' 的密码重置为 123456 吗？', function () {
+                        Api.postParam('/api/sys/user/resetPwd', {id: row.id}).then(function () {
+                            Cw.toast('密码已重置为 123456', 'success');
+                        }).catch(function (e) {
+                            Cw.toast(e.message, 'error');
+                        });
+                    });
+                }},
+                {action: 'delete', text: '删除', className: 'danger', visible: function (row) { return row.accountType !== 0; }}
+            ],
+            formFields: [
+                {field: 'accountName', title: '账号名称', required: true, placeholder: '登录账号，如 cwry'},
+                {field: 'userName', title: '用户姓名', required: true},
+                {field: 'newPwd', title: '密码', placeholder: '新增默认 123456；编辑时留空表示不修改'},
+                {field: 'orgId', title: '所属公司', type: 'select',
+                    options: orgs.map(function (o) { return {value: o.id, text: o.orgName}; })},
+                {field: 'accountPortType', title: '财务系统', type: 'select', defaultValue: 1,
+                    options: [{value: 1, text: '金蝶K8'}, {value: 2, text: '用友'}]},
+                {field: 'roleIds', title: '分配角色', type: 'checkboxGroup',
+                    options: roles.map(function (r) { return {value: r.id, text: r.name}; })},
+                {field: 'locked', title: '账号状态', type: 'select', defaultValue: 0,
+                    options: [{value: 0, text: '正常'}, {value: 1, text: '锁定'}]},
+                {field: 'description', title: '说明', type: 'textarea', rows: 2}
+            ],
+            beforeEdit: function (row, callback) {
+                Api.get('/api/sys/user/detail', {id: row.id}).then(function (detail) {
+                    callback(detail);
+                }).catch(function (e) {
+                    Cw.toast(e.message, 'error');
+                });
+            }
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>资金概要与预警</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/analysis.js"></script>
+<script>
+    AnalysisPage.indicatorPage({
+        title: '资金概要与预警',
+        desc: '资金缺口、现金比率、资产负债率、盈利与经营现金流预警，并给出预警后的调整方向',
+        api: '/api/analysis/fund',
+        tips: '预警标准（上限 / 下限 / 预警级别）在【模型管理 - 算法配置】中按下达，指标触及警戒线后系统自动给出调整建议。'
+            + ' 点击指标卡片可查看该指标近 6 个月趋势。'
+    });
+</script>
+</body>
+</html>

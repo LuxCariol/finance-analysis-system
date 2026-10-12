@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>首页概览</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>财务经营概览</h2>
+            <div class="desc">数据来源：金蝶K8报表导入 → ETL数据转换 → 算法模型计算</div>
+        </div>
+        <div class="toolbar">
+            <span class="text-light">公司</span><select id="orgSel" style="width:210px"></select>
+            <span class="text-light">会计年月</span><input type="month" id="monthSel">
+            <button class="btn primary" id="queryBtn">刷新</button>
+        </div>
+    </div>
+    <div class="tip" id="conclusionTip">加载中...</div>
+    <div class="card"><h3>关键财务指标 <small id="monthLabel"></small></h3><div id="kpiBox"></div></div>
+    <div class="grid-2">
+        <div class="card"><h3>收入与利润趋势</h3><div class="chart" id="trendChart"></div></div>
+        <div class="card"><h3>资产总计趋势</h3><div class="chart" id="assetChart"></div></div>
+    </div>
+    <div class="grid-2">
+        <div class="card"><h3>核心比率指标</h3><div id="ratioBox"></div></div>
+        <div class="card"><h3>预警提示</h3><div id="warnBox"></div></div>
+    </div>
+    <div class="grid-2">
+        <div class="card"><h3>数据导入情况</h3><div id="importBox"></div></div>
+        <div class="card"><h3>财务资讯</h3><div id="newsBox"></div></div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.orgOptions(function (options) {
+        var select = Cw.el('#orgSel');
+        select.innerHTML = options.map(function (o) {
+            return '<option value="' + o.value + '">' + o.text + '</option>';
+        }).join('');
+        select.value = '1';
+        load();
+    });
+    Cw.fillMonth('#monthSel', new Date().toISOString().slice(0, 7));
+    Cw.el('#queryBtn').addEventListener('click', load);
+
+    function load() {
+        var orgId = Cw.el('#orgSel').value;
+        var month = Cw.el('#monthSel').value;
+        Api.get('/api/analysis/dashboard', {orgId: orgId, kjyearMonth: month}).then(function (data) {
+            Cw.el('#monthLabel').textContent = '会计年月: ' + data.kjyearMonth;
+            Cw.kpiList(Cw.el('#kpiBox'), (data.cards || []).map(function (card) {
+                return {
+                    label: card.name,
+                    value: Cw.fmtMoney(card.value) + ' ' + (card.unit || '元'),
+                    color: 'primary'
+                };
+            }));
+            renderTrends(data.trends || []);
+            renderRatio(data.keyRatios || []);
+            renderWarn(data.warnList || []);
+            renderImport(data.importStat || []);
+            renderNews(data.news || []);
+            Cw.el('#conclusionTip').innerHTML = '最近会计年月 <b>' + Cw.esc(data.kjyearMonth)
+                + '</b>：核心指标 ' + (data.keyRatios || []).length + ' 项，触发预警 '
+                + (data.warnList || []).length + ' 项。数据由【数据导入】→【数据转换】自动生成。';
+        }).catch(function (e) {
+            Cw.el('#conclusionTip').innerHTML = '加载失败: ' + Cw.esc(e.message);
+        });
+    }
+
+    function renderTrends(trends) {
+        var revenue = trends.filter(function (t) { return t.code === 'P001'; })[0];
+        var profit = trends.filter(function (t) { return t.code === 'P021'; })[0];
+        var asset = trends.filter(function (t) { return t.code === 'A032'; })[0];
+        var months = (revenue || profit || asset || {months: []}).months;
+        CwChart.line(Cw.el('#trendChart'), months, [
+            {name: '营业收入', data: (revenue || {values: []}).values, type: 'bar'},
+            {name: '净利润', data: (profit || {values: []}).values, type: 'line'}
+        ], {unit: '元'});
+        CwChart.line(Cw.el('#assetChart'), (asset || {months: []}).months,
+            [{name: '资产总计', data: (asset || {values: []}).values, type: 'line', area: true}], {unit: '元'});
+    }
+
+    function renderRatio(list) {
+        if (!list.length) {
+            Cw.el('#ratioBox').innerHTML = '<div class="empty">暂无指标数据，请先执行【数据转换】</div>';
+            return;
+        }
+        Cw.el('#ratioBox').innerHTML = '<table class="data"><thead><tr><th>指标</th><th class="num">当前值</th>'
+            + '<th>状态</th><th>预警说明 / 建议</th></tr></thead><tbody>'
+            + list.map(function (item) {
+                return '<tr><td>' + Cw.esc(item.resultName) + '</td><td class="num">' + Cw.esc(item.displayValue || '-')
+                    + '</td><td>' + Cw.levelBadge(item.warnLevel, item.warnLevelText) + '</td><td class="text-light">'
+                    + Cw.esc(item.warnDesc || (item.advise || '')) + '</td></tr>';
+            }).join('') + '</tbody></table>';
+    }
+
+    function renderWarn(list) {
+        if (!list.length) {
+            Cw.el('#warnBox').innerHTML = '<div class="empty">当前无预警，财务指标均在健康区间</div>';
+            return;
+        }
+        Cw.el('#warnBox').innerHTML = list.map(function (item) {
+            return '<div class="analysis-item warn-' + item.warnLevel + '">'
+                + '<div class="head"><span class="name">' + Cw.esc(item.resultName) + '</span>'
+                + '<span class="val">' + Cw.esc(item.displayValue || '-') + '</span></div>'
+                + '<div class="text-light" style="font-size:12.5px">' + Cw.esc(item.warnDesc) + '</div>'
+                + '<div style="margin-top:6px;font-size:13px">调整建议：' + Cw.esc(item.advise || '-') + '</div></div>';
+        }).join('');
+    }
+
+    function renderImport(list) {
+        if (!list.length) {
+            Cw.el('#importBox').innerHTML = '<div class="empty">暂无导入记录</div>';
+            return;
+        }
+        Cw.el('#importBox').innerHTML = '<table class="data"><thead><tr><th>报表类型</th><th class="num">导入批次</th>'
+            + '<th class="num">成功行数</th><th class="num">失败行数</th><th>最近导入时间</th></tr></thead><tbody>'
+            + list.map(function (row) {
+                return '<tr><td>' + Cw.esc(row.reportType) + '</td><td class="num">' + Cw.esc(row.batchCnt || 0)
+                    + '</td><td class="num">' + Cw.fmtNum(row.successRows, 0) + '</td><td class="num">'
+                    + Cw.fmtNum(row.failRows, 0) + '</td><td>' + Cw.esc(row.lastTime || '-') + '</td></tr>';
+            }).join('') + '</tbody></table>';
+    }
+
+    function renderNews(list) {
+        if (!list.length) {
+            Cw.el('#newsBox').innerHTML = '<div class="empty">暂无资讯</div>';
+            return;
+        }
+        Cw.el('#newsBox').innerHTML = list.map(function (item) {
+            return '<div style="padding:9px 0;border-bottom:1px solid #eef1f6">'
+                + '<div style="font-size:13.5px;font-weight:600">' + Cw.esc(item.title) + '</div>'
+                + '<div class="text-light" style="font-size:12.5px;margin-top:4px">' + Cw.esc(item.content || '') + '</div>'
+                + '<div class="text-light" style="font-size:12px;margin-top:4px">' + Cw.esc(item.publishUser || '')
+                + ' · ' + Cw.esc(item.publishTime || '') + '</div></div>';
+        }).join('');
+    }
+</script>
+</body>
+</html>

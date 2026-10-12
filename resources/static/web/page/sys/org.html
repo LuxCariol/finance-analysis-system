@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>公司管理</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var orgs = [];
+    Api.get('/api/sys/org/list').then(function (list) {
+        orgs = list || [];
+        render();
+    });
+
+    function render() {
+        var names = {};
+        orgs.forEach(function (o) {
+            names[o.id] = o.orgName;
+        });
+        Cw.crud({
+            title: '公司管理',
+            desc: '维护多公司（组织）信息，财务数据与分析结果均按公司维度隔离',
+            listUrl: '/api/sys/org/list',
+            saveUrl: '/api/sys/org/save',
+            deleteUrl: '/api/sys/org/delete',
+            columns: [
+                {field: 'id', title: 'ID', width: '60px'},
+                {field: 'orgCode', title: '公司编码', width: '120px'},
+                {field: 'orgName', title: '公司名称'},
+                {field: 'parentId', title: '上级公司', render: function (r) {
+                    return r.parentId === 0 ? '<span class="badge grey">集团主体</span>' : Cw.esc(names[r.parentId] || r.parentId);
+                }},
+                {field: 'orgType', title: '类型', width: '100px', render: function (r) {
+                    return r.orgType === '1' ? '母公司' : '子公司';
+                }},
+                {field: 'description', title: '说明'},
+                {field: 'createTime', title: '创建时间', width: '160px'}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑'},
+                {action: 'delete', text: '删除', className: 'danger'}
+            ],
+            formFields: [
+                {field: 'orgCode', title: '公司编码', required: true},
+                {field: 'orgName', title: '公司名称', required: true},
+                {field: 'parentId', title: '上级公司', type: 'select', defaultValue: 0,
+                    options: [{value: 0, text: '无(集团主体)'}].concat(orgs.map(function (o) {
+                        return {value: o.id, text: o.orgName};
+                    }))},
+                {field: 'orgType', title: '公司类型', type: 'select', defaultValue: '1',
+                    options: [{value: '1', text: '母公司'}, {value: '2', text: '子公司'}]},
+                {field: 'description', title: '说明', type: 'textarea', rows: 2}
+            ]
+        });
+    }
+</script>
+</body>
+</html>

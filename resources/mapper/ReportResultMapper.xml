@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.finance.mapper.ReportResultMapper">
+
+    <insert id="insertBatch">
+        INSERT INTO t_report_result
+        (batch_id, org_id, kjyear, kjmoth, kjyear_month, report_type, code, value_type, result_value, data_source, create_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.batchId}, #{item.orgId}, #{item.kjyear}, #{item.kjmoth}, #{item.kjyearMonth}, #{item.reportType},
+             #{item.code}, #{item.valueType}, #{item.resultValue}, #{item.dataSource}, #{item.createTime})
+        </foreach>
+    </insert>
+
+    <select id="selectByMonth" resultType="com.qst.finance.model.ReportResult">
+        SELECT id, batch_id, org_id, kjyear, kjmoth, kjyear_month, report_type, code, value_type, result_value, data_source, create_time
+        FROM t_report_result
+        <where>
+            <if test="orgId != null">AND org_id = #{orgId}</if>
+            <if test="kjyearMonth != null and kjyearMonth != ''">AND kjyear_month = #{kjyearMonth}</if>
+            <if test="reportType != null and reportType != ''">AND report_type = #{reportType}</if>
+            <if test="dataSource != null and dataSource != ''">AND data_source = #{dataSource}</if>
+        </where>
+        ORDER BY report_type, code, value_type
+    </select>
+
+    <select id="selectByMonths" resultType="com.qst.finance.model.ReportResult">
+        SELECT kjyear_month, code, value_type, result_value
+        FROM t_report_result
+        WHERE org_id = #{orgId} AND code = #{code}
+        <if test="valueType != null and valueType != ''">AND value_type = #{valueType}</if>
+        <if test="kjyearMonthList != null and kjyearMonthList.size() > 0">
+            AND kjyear_month IN
+            <foreach collection="kjyearMonthList" item="m" open="(" separator="," close=")">#{m}</foreach>
+        </if>
+        ORDER BY kjyear_month
+    </select>
+
+    <select id="selectCodesOfMonth" resultType="com.qst.finance.model.ReportResult">
+        SELECT kjyear_month, code, value_type, result_value
+        FROM t_report_result
+        WHERE org_id = #{orgId} AND kjyear_month = #{kjyearMonth}
+        <if test="valueType != null and valueType != ''">AND value_type = #{valueType}</if>
+        <if test="codeList != null and codeList.size() > 0">
+            AND code IN
+            <foreach collection="codeList" item="c" open="(" separator="," close=")">#{c}</foreach>
+        </if>
+        ORDER BY code
+    </select>
+
+    <select id="selectMonthList" resultType="map">
+        SELECT kjyear_month AS kjyear_month, COUNT(1) AS cnt, MAX(create_time) AS create_time
+        FROM t_report_result
+        <where>
+            <if test="orgId != null">AND org_id = #{orgId}</if>
+            <if test="reportType != null and reportType != ''">AND report_type = #{reportType}</if>
+        </where>
+        GROUP BY kjyear_month
+        ORDER BY kjyear_month DESC
+    </select>
+</mapper>

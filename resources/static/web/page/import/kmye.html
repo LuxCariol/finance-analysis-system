@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>科目余额表导入</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/import-page.js"></script>
+<script>
+    ImportPage.render({
+        title: '科目余额表导入',
+        desc: '导入金蝶K8科目余额表一级、二级科目期初、本期发生与期末数据',
+        reportType: 'KMYE',
+        preview: true,
+        previewTitle: '科目余额表数据',
+        onPreview: function (ctx, box) {
+            Api.get('/api/report/kmye', {orgId: ctx.orgId, kjyearMonth: ctx.kjyearMonth}).then(function (list) {
+                Cw.renderTable(box, [
+                    {field: 'subjectCode', title: '科目代码'},
+                    {field: 'subjectName', title: '科目名称'},
+                    {field: 'subjectLevel', title: '级次'},
+                    {field: 'qcAmount', title: '期初余额', align: 'right', render: function (r) { return Cw.fmtMoney(r.qcAmount); }},
+                    {field: 'periodDebit', title: '本期借方', align: 'right', render: function (r) { return Cw.fmtMoney(r.periodDebit); }},
+                    {field: 'periodCredit', title: '本期贷方', align: 'right', render: function (r) { return Cw.fmtMoney(r.periodCredit); }},
+                    {field: 'qmAmount', title: '期末余额', align: 'right', render: function (r) { return Cw.fmtMoney(r.qmAmount); }}
+                ], list, {emptyText: '该会计年月暂无科目余额数据'});
+            }).catch(function () {
+            });
+        }
+    });
+</script>
+</body>
+</html>

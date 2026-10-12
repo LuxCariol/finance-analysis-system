@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.finance.mapper.ReportDataMapper">
+
+    <select id="selectKmye" resultType="map">
+        SELECT subject_code, subject_name, subject_level, parent_code, direction, qc_amount, period_debit, period_credit, qm_amount
+        FROM t_kmye
+        WHERE org_id = #{orgId} AND kjyear_month = #{kjyearMonth}
+        <if test="subjectCode != null and subjectCode != ''">
+            AND (subject_code LIKE CONCAT(#{subjectCode}, '%') OR subject_name LIKE CONCAT('%', #{subjectCode}, '%'))
+        </if>
+        ORDER BY subject_code
+    </select>
+
+    <select id="selectAgingList" resultType="map">
+        SELECT project_code, project_name, balance, credit_period, credit_line, aging_type, kjyear_month,
+               not_due1_to30_days, not_due31_to90_days, not_due91_to180_days, not_due181_days,
+               due1_to30_days, due31_to90_days, due91_to180_days, due181_to360_days,
+               due361_to720_days, due721_to1080_days, due1081_to1440_days, due1441_days, due_today
+        FROM t_age_analysis
+        WHERE org_id = #{orgId} AND kjyear_month = #{kjyearMonth}
+        <if test="agingType != null and agingType != ''">AND aging_type = #{agingType}</if>
+        <if test="projectCode != null and projectCode != ''">
+            AND (project_code LIKE CONCAT('%', #{projectCode}, '%') OR project_name LIKE CONCAT('%', #{projectCode}, '%'))
+        </if>
+        ORDER BY balance DESC
+    </select>
+
+    <select id="selectAgingSummary" resultType="map">
+        SELECT aging_type,
+               COUNT(1) AS project_cnt,
+               SUM(balance) AS total_balance,
+               SUM(not_due1_to30_days) AS not_due1,
+               SUM(not_due31_to90_days) AS not_due31,
+               SUM(not_due91_to180_days) AS not_due91,
+               SUM(not_due181_days) AS not_due181,
+               SUM(due1_to30_days) AS due1,
+               SUM(due31_to90_days) AS due31,
+               SUM(due91_to180_days) AS due91,
+               SUM(due181_to360_days) AS due181,
+               SUM(due361_to720_days) AS due361,
+               SUM(due721_to1080_days) AS due721,
+               SUM(due1081_to1440_days) AS due1081,
+               SUM(due1441_days) AS due1441
+        FROM t_age_analysis
+        WHERE org_id = #{orgId}
+        <if test="kjyearMonth != null and kjyearMonth != ''">AND kjyear_month = #{kjyearMonth}</if>
+        GROUP BY aging_type
+        ORDER BY aging_type
+    </select>
+
+    <select id="selectImportStat" resultType="map">
+        SELECT report_type,
+               COUNT(1) AS batch_cnt,
+               SUM(total_rows) AS total_rows,
+               SUM(success_rows) AS success_rows,
+               SUM(fail_rows) AS fail_rows,
+               MAX(start_time) AS last_time
+        FROM t_import_log
+        GROUP BY report_type
+        ORDER BY report_type
+    </select>
+</mapper>

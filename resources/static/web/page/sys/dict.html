@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>系统字典</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>系统字典</h2>
+            <div class="desc">维护报表类型、取数类型、预警级别、账龄类型等基础字典，供各功能页面下拉使用</div>
+        </div>
+    </div>
+    <div class="grid-2">
+        <div class="card">
+            <h3>字典分类 <button class="btn small primary" id="addDictBtn">+ 新增</button></h3>
+            <div id="dictBox"></div>
+        </div>
+        <div class="card">
+            <h3>字典明细 <span id="dictTitle" class="text-light"></span>
+                <button class="btn small primary" id="addDetailBtn">+ 新增字典项</button></h3>
+            <div id="detailBox"></div>
+        </div>
+    </div>
+</div>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var current = null;
+
+    function loadDicts() {
+        Api.get('/api/sys/dict/list').then(function (list) {
+            Cw.renderTable(Cw.el('#dictBox'), [
+                {field: 'dictCode', title: '字典编码'},
+                {field: 'dictName', title: '字典名称'},
+                {field: 'description', title: '说明'},
+                {title: '操作', width: '150px', render: function (row) {
+                    return '<button class="btn small" data-view="' + row.dictCode + '">查看</button> '
+                        + '<button class="btn small" data-edit="' + row.id + '">编辑</button> '
+                        + '<button class="btn small danger" data-del="' + row.id + '">删除</button>';
+                }}
+            ], list);
+            Cw.els('#dictBox [data-view]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    current = btn.getAttribute('data-view');
+                    loadDetails();
+                });
+            });
+            Cw.els('#dictBox [data-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var row = list.filter(function (r) { return String(r.id) === btn.getAttribute('data-edit'); })[0];
+                    openDictForm(row);
+                });
+            });
+            Cw.els('#dictBox [data-del]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    Cw.confirm('确定删除该字典分类吗（需先删除其字典项）？', function () {
+                        Api.postParam('/api/sys/dict/delete', {id: btn.getAttribute('data-del')}).then(function () {
+                            Cw.toast('删除成功', 'success');
+                            loadDicts();
+                        });
+                    });
+                });
+            });
+            if (!current && list.length) {
+                current = list[0].dictCode;
+            }
+            loadDetails();
+        });
+    }
+
+    function loadDetails() {
+        if (!current) {
+            return;
+        }
+        Cw.el('#dictTitle').textContent = '（' + current + '）';
+        Api.get('/api/sys/dict/detail', {dictCode: current}).then(function (list) {
+            Cw.renderTable(Cw.el('#detailBox'), [
+                {field: 'itemKey', title: '字典项值'},
+                {field: 'itemValue', title: '显示名称'},
+                {field: 'orderNo', title: '排序', width: '70px'},
+                {field: 'description', title: '说明'},
+                {title: '操作', width: '140px', render: function (row) {
+                    return '<button class="btn small" data-edit="' + row.id + '">编辑</button> '
+                        + '<button class="btn small danger" data-del="' + row.id + '">删除</button>';
+                }}
+            ], list, {emptyText: '该字典暂无明细'});
+            Cw.els('#detailBox [data-edit]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openDetailForm(list.filter(function (r) { return String(r.id) === btn.getAttribute('data-edit'); })[0]);
+                });
+            });
+            Cw.els('#detailBox [data-del]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    Cw.confirm('确定删除该字典项吗？', function () {
+                        Api.postParam('/api/sys/dict/detail/delete', {id: btn.getAttribute('data-del')}).then(function () {
+                            Cw.toast('删除成功', 'success');
+                            loadDetails();
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    function openDictForm(row) {
+        Cw.modal({
+            title: row ? '编辑字典分类' : '新增字典分类',
+            bodyHtml: Cw.formHtml([
+                {field: 'dictCode', title: '字典编码', required: true, placeholder: '如 REPORT_TYPE'},
+                {field: 'dictName', title: '字典名称', required: true},
+                {field: 'description', title: '说明', type: 'textarea', rows: 2}
+            ], row),
+            onOk: function (body) {
+                var data = Cw.readForm(body);
+                if (row) {
+                    data.id = row.id;
+                }
+                Api.post('/api/sys/dict/save', data).then(function () {
+                    Cw.toast('保存成功', 'success');
+                    loadDicts();
+                }).catch(function (e) {
+                    Cw.toast(e.message, 'error');
+                });
+                return true;
+            }
+        });
+    }
+
+    function openDetailForm(row) {
+        Cw.modal({
+            title: row ? '编辑字典项' : '新增字典项',
+            bodyHtml: Cw.formHtml([
+                {field: 'itemKey', title: '字典项值', required: true, placeholder: '如 BALANCE'},
+                {field: 'itemValue', title: '显示名称', required: true, placeholder: '如 资产负债表'},
+                {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99},
+                {field: 'description', title: '说明', type: 'textarea', rows: 2}
+            ], row),
+            onOk: function (body) {
+                var data = Cw.readForm(body);
+                data.dictCode = current;
+                if (row) {
+                    data.id = row.id;
+                }
+                Api.post('/api/sys/dict/detail/save', data).then(function () {
+                    Cw.toast('保存成功', 'success');
+                    loadDetails();
+                }).catch(function (e) {
+                    Cw.toast(e.message, 'error');
+                });
+                return true;
+            }
+        });
+    }
+
+    Cw.el('#addDictBtn').addEventListener('click', function () {
+        openDictForm(null);
+    });
+    Cw.el('#addDetailBtn').addEventListener('click', function () {
+        openDetailForm(null);
+    });
+    loadDicts();
+</script>
+</body>
+</html>

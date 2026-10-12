@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>角色管理</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var menus = [];
+    Api.get('/api/sys/menu/list').then(function (list) {
+        menus = list || [];
+        render();
+    }).catch(function (e) {
+        document.body.innerHTML = '<div class="empty">加载失败: ' + Cw.esc(e.message) + '</div>';
+    });
+
+    function render() {
+        Cw.crud({
+            title: '角色管理',
+            desc: '维护后台角色及其菜单权限（菜单角色关联表 t_sys_role_action）',
+            listUrl: '/api/sys/role/list',
+            saveUrl: '/api/sys/role/save',
+            deleteUrl: '/api/sys/role/delete',
+            actionWidth: '140px',
+            columns: [
+                {field: 'id', title: 'ID', width: '60px'},
+                {field: 'name', title: '角色名称'},
+                {field: 'description', title: '角色说明'},
+                {field: 'userCount', title: '用户数', width: '90px', align: 'right'},
+                {field: 'createTime', title: '创建时间', width: '160px'}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑权限'},
+                {action: 'delete', text: '删除', className: 'danger'}
+            ],
+            formFields: [
+                {field: 'name', title: '角色名称', required: true},
+                {field: 'description', title: '角色说明', type: 'textarea', rows: 2},
+                {field: 'resIds', title: '菜单权限', type: 'checkboxGroup',
+                    options: menus.map(function (m) {
+                        return {value: m.id, text: (m.parentId === 0 ? '【' + m.name + '】' : '　' + m.name)};
+                    })}
+            ],
+            beforeEdit: function (row, callback) {
+                Api.get('/api/sys/role/resources', {roleId: row.id}).then(function (resIds) {
+                    var data = {};
+                    for (var key in row) {
+                        data[key] = row[key];
+                    }
+                    data.resIds = resIds || [];
+                    callback(data);
+                });
+            }
+        });
+    }
+</script>
+</body>
+</html>

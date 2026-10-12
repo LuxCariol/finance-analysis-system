@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>导入日志</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>数据导入日志</h2>
+            <div class="desc">记录每次数据导入与数据转换的批次、行数、状态与失败原因</div>
+        </div>
+        <div class="toolbar"><button class="btn" id="refreshBtn">刷新</button></div>
+    </div>
+    <div class="card"><div id="tableBox"></div></div>
+</div>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    function load() {
+        Api.get('/api/import/logs').then(function (list) {
+            Cw.renderTable(Cw.el('#tableBox'), [
+                {field: 'batchId', title: '批次号', width: '170px'},
+                {field: 'reportName', title: '报表/任务'},
+                {field: 'fileName', title: '文件名'},
+                {field: 'totalRows', title: '总行数', align: 'right'},
+                {field: 'successRows', title: '成功', align: 'right'},
+                {field: 'failRows', title: '失败', align: 'right'},
+                {field: 'status', title: '状态', render: function (r) {
+                    var cls = r.status === 'SUCCESS' ? 'green' : (r.status === 'SKIPPED' ? 'yellow' : 'red');
+                    return '<span class="badge ' + cls + '">' + Cw.esc(r.status) + '</span>';
+                }},
+                {field: 'message', title: '说明'},
+                {field: 'impUser', title: '操作人'},
+                {field: 'startTime', title: '开始时间'}
+            ], list, {emptyText: '暂无导入日志'});
+        });
+    }
+    Cw.el('#refreshBtn').addEventListener('click', load);
+    load();
+</script>
+</body>
+</html>

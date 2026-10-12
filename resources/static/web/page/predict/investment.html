@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>投资预测</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>投资预测</h2>
+            <div class="desc">测算投资回报并生成投资预测报告，报告存入报告表(t_report)供管理层查询</div>
+        </div>
+    </div>
+    <div class="card">
+        <h3>投资预测参数</h3>
+        <div class="form-grid" style="grid-template-columns:130px 210px 130px 210px">
+            <div class="lbl">公司</div>
+            <div><select id="orgSel" style="width:100%"></select></div>
+            <div class="lbl">会计年月</div>
+            <div><input type="month" id="monthSel"></div>
+            <div class="lbl">项目名称</div>
+            <div class="full"><input type="text" id="reportName" value="智能装备产线扩建项目"></div>
+            <div class="lbl">投资总额(元)</div>
+            <div><input type="number" id="investAmount" value="12000000"></div>
+            <div class="lbl">折现率(%)</div>
+            <div><input type="number" id="discountRate" value="10"></div>
+            <div class="lbl">测算年数</div>
+            <div><input type="number" id="years" value="6"></div>
+            <div class="lbl">年新增收入(元)</div>
+            <div><input type="number" id="annualRevenue" value="16000000"></div>
+            <div class="lbl">年运营成本(元)</div>
+            <div><input type="number" id="annualCost" value="11200000"></div>
+        </div>
+        <div style="margin-top:14px">
+            <button class="btn primary" id="calcBtn">测算并生成报告</button>
+            <button class="btn" id="refreshBtn">刷新报告列表</button>
+        </div>
+    </div>
+    <div class="card"><h3>投资预测结论</h3><div id="conclusion" style="line-height:1.9">请点击【测算并生成报告】</div></div>
+    <div class="card"><h3>测算指标</h3><div id="kpiBox"><div class="empty">暂无结果</div></div></div>
+    <div class="card"><h3>投资预测报告</h3><div id="reportBox"></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.orgOptions(function (options) {
+        Cw.el('#orgSel').innerHTML = options.map(function (o) {
+            return '<option value="' + o.value + '">' + o.text + '</option>';
+        }).join('');
+        loadReports();
+    });
+    Cw.fillMonth('#monthSel', new Date().toISOString().slice(0, 7));
+    Cw.el('#calcBtn').addEventListener('click', calc);
+    Cw.el('#refreshBtn').addEventListener('click', loadReports);
+
+    function payload() {
+        return {
+            orgId: Cw.el('#orgSel').value,
+            kjyearMonth: Cw.el('#monthSel').value,
+            reportName: Cw.el('#reportName').value,
+            investAmount: Cw.el('#investAmount').value,
+            discountRate: Cw.num(Cw.el('#discountRate').value) / 100,
+            years: Cw.el('#years').value,
+            annualRevenue: Cw.el('#annualRevenue').value,
+            annualCost: Cw.el('#annualCost').value
+        };
+    }
+
+    function calc() {
+        var data = payload();
+        Api.post('/api/analysis/investment', data).then(function (result) {
+            Cw.el('#conclusion').textContent = result.conclusion;
+            Cw.kpiList(Cw.el('#kpiBox'), [
+                {label: '净现值 NPV', value: Cw.fmtMoney(result.npv) + ' 元', color: Cw.num(result.npv) >= 0 ? 'green' : 'red'},
+                {label: '内部收益率 IRR', value: result.irrDisplay, color: 'primary'},
+                {label: '投资回报率 ROI', value: result.roiDisplay, color: 'primary'},
+                {label: '投资回收期', value: (result.paybackPeriod === null ? '-' : result.paybackPeriod) + ' 年', color: 'orange'}
+            ]);
+            var report = {
+                orgId: data.orgId,
+                kjyearMonth: data.kjyearMonth,
+                reportName: data.reportName + '投资预测报告',
+                summary: '投资总额 ' + Cw.fmtMoney(data.investAmount) + ' 元，折现率 ' + Cw.el('#discountRate').value
+                    + '%，NPV ' + Cw.fmtMoney(result.npv) + ' 元，IRR ' + result.irrDisplay + '，回收期 '
+                    + (result.paybackPeriod === null ? '-' : result.paybackPeriod) + ' 年。',
+                content: '投资总额:' + data.investAmount + ';折现率:' + data.discountRate + ';测算年数:' + data.years
+                    + ';年新增收入:' + data.annualRevenue + ';年运营成本:' + data.annualCost
+                    + ';NPV:' + result.npv + ';IRR:' + result.irrDisplay + ';ROI:' + result.roiDisplay
+                    + ';回收期:' + result.paybackPeriod + ';结论:' + result.conclusion
+            };
+            Api.post('/api/analysis/investment/report', report).then(function () {
+                Cw.toast('投资预测报告已保存', 'success');
+                loadReports();
+            }).catch(function (e) {
+                Cw.toast('报告保存失败: ' + e.message, 'error');
+            });
+        }).catch(function (e) {
+            Cw.el('#conclusion').textContent = '测算失败: ' + e.message;
+        });
+    }
+
+    function loadReports() {
+        Api.get('/api/analysis/investment/reports').then(function (list) {
+            Cw.renderTable(Cw.el('#reportBox'), [
+                {field: 'reportName', title: '报告名称'},
+                {field: 'kjyearMonth', title: '会计年月'},
+                {field: 'summary', title: '报告摘要'},
+                {field: 'creator', title: '创建人'},
+                {field: 'createTime', title: '创建时间'},
+                {title: '操作', width: '90px', render: function (row) {
+                    return '<button class="btn small" onclick="viewReport(' + row.id + ')">查看</button>';
+                }}
+            ], list);
+            window.__reports = list;
+        }).catch(function (e) {
+            Cw.el('#reportBox').innerHTML = '<div class="empty">加载失败: ' + Cw.esc(e.message) + '</div>';
+        });
+    }
+
+    function viewReport(id) {
+        var report = (window.__reports || []).filter(function (r) { return r.id === id; })[0];
+        if (!report) {
+            return;
+        }
+        var content = (report.content || '').split(';').map(function (item) {
+            return '<div style="padding:5px 0;border-bottom:1px solid #eef1f6">' + Cw.esc(item) + '</div>';
+        }).join('');
+        Cw.modal({
+            title: report.reportName,
+            width: 720,
+            hideOk: true,
+            bodyHtml: '<div style="line-height:1.9"><b>摘要：</b>' + Cw.esc(report.summary)
+                + '</div><div style="margin-top:12px;font-size:13.5px">' + content + '</div>'
+        });
+    }
+</script>
+</body>
+</html>

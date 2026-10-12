@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>编码字典</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.crud({
+        title: '编码字典',
+        desc: '维护数据仓库编码的名称、所属报表、图表类型与展示精度（编码概要、曲线图等配置）',
+        listUrl: '/api/model/libr/list',
+        saveUrl: '/api/model/libr/save',
+        deleteUrl: '/api/model/libr/delete',
+        searchFields: [
+            {field: 'reportType', title: '报表类型', type: 'select', options: [
+                {value: 'BALANCE', text: '资产负债表'}, {value: 'PROFIT', text: '利润表'}, {value: 'CASHFLOW', text: '现金流量表'}
+            ]}
+        ],
+        columns: [
+            {field: 'code', title: '编码', width: '90px'},
+            {field: 'codeName', title: '编码名称'},
+            {field: 'reportType', title: '报表类型', width: '110px'},
+            {field: 'reportGroup', title: '分组', width: '110px'},
+            {field: 'chartType', title: '图表类型', width: '100px'},
+            {field: 'precisionScale', title: '精度', width: '70px'},
+            {field: 'unit', title: '单位', width: '70px'},
+            {field: 'isActive', title: '启用', width: '70px', render: function (r) {
+                return r.isActive === 1 ? '<span class="badge green">启用</span>' : '<span class="badge grey">停用</span>';
+            }}
+        ],
+        rowActions: [
+            {action: 'edit', text: '编辑'},
+            {action: 'delete', text: '删除', className: 'danger'}
+        ],
+        formFields: [
+            {field: 'code', title: '编码', required: true, placeholder: '如 A032'},
+            {field: 'codeName', title: '编码名称', required: true, placeholder: '如 资产总计'},
+            {field: 'reportType', title: '报表类型', type: 'select', options: [
+                {value: 'BALANCE', text: '资产负债表'}, {value: 'PROFIT', text: '利润表'}, {value: 'CASHFLOW', text: '现金流量表'}
+            ]},
+            {field: 'reportGroup', title: '分组名称', defaultValue: '资产负债'},
+            {field: 'chartType', title: '图表类型', type: 'select', defaultValue: 'line', options: [
+                {value: 'line', text: '折线图'}, {value: 'bar', text: '柱状图'}, {value: 'pie', text: '饼图'}, {value: 'gauge', text: '仪表盘'}
+            ]},
+            {field: 'precisionScale', title: '小数位数', type: 'number', defaultValue: 2},
+            {field: 'unit', title: '单位', defaultValue: '元'},
+            {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99},
+            {field: 'isActive', title: '是否启用', type: 'select', defaultValue: 1,
+                options: [{value: 1, text: '启用'}, {value: 0, text: '停用'}]},
+            {field: 'description', title: '说明', type: 'textarea', rows: 2}
+        ]
+    });
+</script>
+</body>
+</html>

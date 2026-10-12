@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>编码映射</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.crud({
+        title: '编码映射',
+        desc: '维护"财务报表基础表字段 → 数据仓库编码"的映射关系，是 ETL 数据转换的核心配置',
+        tips: '示例：t_basi_assets_and_liabilities 表的 QM_ZCZJ 字段 → 编码 A032(资产总计)，取数类型 QM(期末数)。'
+            + '数据转换时系统按该配置将三大报表数据转换为统一编码存入 t_report_result。',
+        listUrl: '/api/model/mapper/list',
+        saveUrl: '/api/model/mapper/save',
+        deleteUrl: '/api/model/mapper/delete',
+        searchFields: [
+            {field: 'reportType', title: '报表类型', type: 'select', options: [
+                {value: 'BALANCE', text: '资产负债表'}, {value: 'PROFIT', text: '利润表'}, {value: 'CASHFLOW', text: '现金流量表'}
+            ]}
+        ],
+        columns: [
+            {field: 'id', title: 'ID', width: '60px'},
+            {field: 'sourceTable', title: '来源表'},
+            {field: 'sourceColumn', title: '来源字段'},
+            {field: 'code', title: '目标编码', width: '90px'},
+            {field: 'codeName', title: '编码名称'},
+            {field: 'valueType', title: '取数类型', width: '90px'},
+            {field: 'reportType', title: '报表类型', width: '100px'},
+            {field: 'mapType', title: '映射方式', width: '100px'},
+            {field: 'isActive', title: '启用', width: '70px', render: function (r) {
+                return r.isActive === 1 ? '<span class="badge green">启用</span>' : '<span class="badge grey">停用</span>';
+            }}
+        ],
+        rowActions: [
+            {action: 'edit', text: '编辑'},
+            {action: 'delete', text: '删除', className: 'danger'}
+        ],
+        formFields: [
+            {field: 'sourceTable', title: '来源表', required: true,
+                type: 'select', options: [
+                    {value: 't_basi_assets_and_liabilities', text: 't_basi_assets_and_liabilities(资产负债表)'},
+                    {value: 't_basi_profit', text: 't_basi_profit(利润表)'},
+                    {value: 't_basi_cash_flow', text: 't_basi_cash_flow(现金流量表)'}
+                ]},
+            {field: 'sourceColumn', title: '来源字段', required: true, placeholder: '如 QM_ZCZJ'},
+            {field: 'code', title: '目标编码', required: true, placeholder: '如 A032'},
+            {field: 'valueType', title: '取数类型', type: 'select', options: [
+                {value: 'NC', text: 'NC 年初数'}, {value: 'QM', text: 'QM 期末数'},
+                {value: 'BJ', text: 'BJ 本期金额'}, {value: 'SQ', text: 'SQ 上期金额'}
+            ]},
+            {field: 'reportType', title: '报表类型', type: 'select', options: [
+                {value: 'BALANCE', text: '资产负债表'}, {value: 'PROFIT', text: '利润表'}, {value: 'CASHFLOW', text: '现金流量表'}
+            ]},
+            {field: 'mapType', title: '映射方式', type: 'select', defaultValue: 'COLUMN',
+                options: [{value: 'COLUMN', text: '直接取字段值'}, {value: 'EXPRESSION', text: '表达式计算'}]},
+            {field: 'calcExpression', title: '计算表达式', placeholder: '映射方式为表达式时填写，如 {A001}+{A002}'},
+            {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99},
+            {field: 'isActive', title: '是否启用', type: 'select', defaultValue: 1,
+                options: [{value: 1, text: '启用'}, {value: 0, text: '停用'}]}
+        ]
+    });
+</script>
+</body>
+</html>

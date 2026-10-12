@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>损益预测</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>损益预测</h2>
+            <div class="desc">基于历史损益数据，采用线性回归 + 复合增长率外推未来期间的营业收入与净利润</div>
+        </div>
+        <div class="toolbar">
+            <span class="text-light">公司</span><select id="orgSel" style="width:210px"></select>
+            <span class="text-light">会计年月</span><input type="month" id="monthSel">
+            <span class="text-light">预测期数</span><input type="number" id="periods" value="3" style="width:80px">
+            <button class="btn primary" id="queryBtn">预测</button>
+        </div>
+    </div>
+    <div class="tip">预测算法说明：<code>y = a + b·x</code>（最小二乘线性回归）与历史复合增长率共同校验；月度实际值取数据仓库编码
+        <code>P001</code>(营业收入)、<code>P021</code>(净利润)。生产环境亦可调用数据库存储过程
+        <code>p_profit_forecast</code> 实现（脚本见 deploy/proc_profit_forecast.sql）。</div>
+    <div class="card"><h3>预测结论</h3><div id="conclusion" style="line-height:1.9">加载中...</div></div>
+    <div class="card"><h3>关键预测指标</h3><div id="kpiBox"></div></div>
+    <div class="card"><h3>历史与预测趋势</h3><div class="chart" id="trendChart"></div></div>
+    <div class="card"><h3>预测明细</h3><div id="tableBox"></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.orgOptions(function (options) {
+        var select = Cw.el('#orgSel');
+        select.innerHTML = options.map(function (o) {
+            return '<option value="' + o.value + '">' + o.text + '</option>';
+        }).join('');
+        load();
+    });
+    Cw.fillMonth('#monthSel', new Date().toISOString().slice(0, 7));
+    Cw.el('#queryBtn').addEventListener('click', load);
+
+    function load() {
+        var orgId = Cw.el('#orgSel').value;
+        var month = Cw.el('#monthSel').value;
+        var periods = Cw.el('#periods').value || 3;
+        Api.get('/api/analysis/forecast', {orgId: orgId, kjyearMonth: month, periods: periods}).then(function (data) {
+            Cw.el('#conclusion').textContent = data.conclusion;
+            var lastProfit = data.forecastProfit[data.forecastProfit.length - 1];
+            Cw.kpiList(Cw.el('#kpiBox'), [
+                {label: '净利润月度趋势', value: Cw.fmtMoney(data.profitTrend) + ' 元/月', color: Cw.num(data.profitTrend) >= 0 ? 'green' : 'red',
+                    sub: '线性回归斜率'},
+                {label: '净利润平均增长率', value: Cw.fmtPercent(data.profitGrowth), color: 'primary',
+                    sub: '基于近 ' + data.historyMonths.length + ' 个月'},
+                {label: '营业收入平均增长率', value: Cw.fmtPercent(data.revenueGrowth), color: 'primary'},
+                {label: '预测末期净利润', value: Cw.fmtMoney(lastProfit) + ' 元', color: 'orange',
+                    sub: data.forecastMonths[data.forecastMonths.length - 1]}
+            ]);
+            var categories = data.historyMonths.concat(data.forecastMonths);
+            var profitSeries = data.historyProfit.concat(data.forecastProfit);
+            var revenueSeries = data.historyRevenue.concat(data.forecastRevenue);
+            var historyLen = data.historyMonths.length;
+            CwChart.line(Cw.el('#trendChart'), categories, [
+                {name: '营业收入(实际)', data: revenueSeries.map(function (v, i) { return i < historyLen ? v : null; }), type: 'bar', color: '#9fc0f7'},
+                {name: '营业收入(预测)', data: revenueSeries.map(function (v, i) { return i < historyLen - 1 ? null : v; }), type: 'line'},
+                {name: '净利润(实际)', data: profitSeries.map(function (v, i) { return i < historyLen ? v : null; }), type: 'line'},
+                {name: '净利润(预测)', data: profitSeries.map(function (v, i) { return i < historyLen - 1 ? null : v; }), type: 'line'}
+            ], {unit: '元'});
+            var rows = [];
+            data.historyMonths.forEach(function (m, i) {
+                rows.push({month: m, type: '实际', revenue: data.historyRevenue[i], profit: data.historyProfit[i]});
+            });
+            data.forecastMonths.forEach(function (m, i) {
+                rows.push({month: m, type: '预测', revenue: data.forecastRevenue[i], profit: data.forecastProfit[i]});
+            });
+            Cw.renderTable(Cw.el('#tableBox'), [
+                {field: 'month', title: '会计年月'},
+                {field: 'type', title: '数据类型', render: function (r) {
+                    return r.type === '实际' ? '<span class="badge green">实际</span>' : '<span class="badge yellow">预测</span>';
+                }},
+                {field: 'revenue', title: '营业收入(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.revenue); }},
+                {field: 'profit', title: '净利润(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.profit); }}
+            ], rows);
+        }).catch(function (e) {
+            Cw.el('#conclusion').textContent = '预测失败: ' + e.message;
+        });
+    }
+</script>
+</body>
+</html>

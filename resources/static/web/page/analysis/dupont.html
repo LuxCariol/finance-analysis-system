@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>杜邦分析</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/analysis.js"></script>
+<script>
+    AnalysisPage.indicatorPage({
+        title: '杜邦分析',
+        desc: '净资产收益率 = 销售净利率 × 总资产周转率 × 权益乘数，定位盈利能力、运营效率与财务杠杆的贡献',
+        api: '/api/analysis/dupont',
+        tips: '杜邦分解模型维护在 t_mode 表中，parent_code 字段描述指标之间的层级关系。'
+    });
+</script>
+</body>
+</html>

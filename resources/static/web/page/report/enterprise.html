@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>企业经营报告</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>企业经营报告</h2>
+            <div class="desc">汇总资产、负债、权益、收入、利润与现金流，自动生成经营结论与预警提示</div>
+        </div>
+        <div class="toolbar">
+            <span class="text-light">公司</span><select id="orgSel" style="width:210px"></select>
+            <span class="text-light">会计年月</span><input type="month" id="monthSel">
+            <button class="btn primary" id="queryBtn">生成报告</button>
+        </div>
+    </div>
+    <div class="card"><h3>经营结论</h3><div id="conclusion" style="line-height:1.9"></div></div>
+    <div class="card"><h3>总量指标</h3><div id="kpiBox"></div></div>
+    <div class="grid-2">
+        <div class="card"><h3>收入与净利润趋势</h3><div class="chart" id="trendChart"></div></div>
+        <div class="card"><h3>比率指标</h3><div id="ratioBox"></div></div>
+    </div>
+    <div class="card"><h3>预警明细与调整建议</h3><div id="warnBox"></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.orgOptions(function (options) {
+        var select = Cw.el('#orgSel');
+        select.innerHTML = options.map(function (o) {
+            return '<option value="' + o.value + '">' + o.text + '</option>';
+        }).join('');
+        load();
+    });
+    Cw.fillMonth('#monthSel', new Date().toISOString().slice(0, 7));
+    Cw.el('#queryBtn').addEventListener('click', load);
+
+    function load() {
+        Api.get('/api/analysis/enterprise', {
+            orgId: Cw.el('#orgSel').value,
+            kjyearMonth: Cw.el('#monthSel').value
+        }).then(function (data) {
+            Cw.el('#conclusion').innerHTML = Cw.esc(data.conclusion || '');
+            Cw.kpiList(Cw.el('#kpiBox'), (data.summary || []).map(function (item) {
+                return {
+                    label: item.name,
+                    value: Cw.fmtMoney(item.current) + ' 元',
+                    color: Cw.num(item.change) >= 0 ? 'primary' : 'orange',
+                    sub: '较期初/上期 ' + Cw.changeHtml(item.change, item.changeRate)
+                };
+            }));
+            Cw.analysisItems(Cw.el('#warnBox'), (data.warns || []).concat(data.ratios || []));
+            Cw.el('#ratioBox').innerHTML = '<table class="data"><thead><tr><th>指标</th><th class="num">当前值</th>'
+                + '<th>状态</th></tr></thead><tbody>'
+                + (data.ratios || []).map(function (item) {
+                    return '<tr><td>' + Cw.esc(item.resultName) + '</td><td class="num">' + Cw.esc(item.displayValue)
+                        + '</td><td>' + Cw.levelBadge(item.warnLevel, item.warnLevelText) + '</td></tr>';
+                }).join('') + '</tbody></table>';
+            var revenue = (data.trends || []).filter(function (t) { return t.code === 'P001'; })[0] || {months: [], values: []};
+            var profit = (data.trends || []).filter(function (t) { return t.code === 'P021'; })[0] || {months: [], values: []};
+            CwChart.line(Cw.el('#trendChart'), revenue.months, [
+                {name: '营业收入', data: revenue.values, type: 'bar'},
+                {name: '净利润', data: profit.values, type: 'line'}
+            ], {unit: '元'});
+        }).catch(function (e) {
+            Cw.el('#conclusion').innerHTML = '加载失败: ' + Cw.esc(e.message);
+        });
+    }
+</script>
+</body>
+</html>

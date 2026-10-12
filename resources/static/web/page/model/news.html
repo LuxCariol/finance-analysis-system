@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>资讯管理</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.crud({
+        title: '资讯管理',
+        desc: '维护财务资讯、预警通知与制度说明，展示在首页概览中',
+        listUrl: '/api/model/news/list',
+        saveUrl: '/api/model/news/save',
+        deleteUrl: '/api/model/news/delete',
+        columns: [
+            {field: 'id', title: 'ID', width: '60px'},
+            {field: 'title', title: '标题'},
+            {field: 'infoType', title: '类型', width: '120px', render: function (r) {
+                var map = {REPORT: '分析报告', WARN: '预警通知', NOTICE: '制度说明'};
+                return '<span class="badge grey">' + Cw.esc(map[r.infoType] || r.infoType) + '</span>';
+            }},
+            {field: 'content', title: '内容'},
+            {field: 'publishUser', title: '发布人', width: '100px'},
+            {field: 'publishTime', title: '发布时间', width: '160px'},
+            {field: 'status', title: '状态', width: '80px', render: function (r) {
+                return r.status === 1 ? '<span class="badge green">已发布</span>' : '<span class="badge grey">草稿</span>';
+            }}
+        ],
+        rowActions: [
+            {action: 'edit', text: '编辑'},
+            {action: 'delete', text: '删除', className: 'danger'}
+        ],
+        formFields: [
+            {field: 'title', title: '标题', required: true},
+            {field: 'infoType', title: '资讯类型', type: 'select', defaultValue: 'REPORT', options: [
+                {value: 'REPORT', text: '分析报告'}, {value: 'WARN', text: '预警通知'}, {value: 'NOTICE', text: '制度说明'}
+            ]},
+            {field: 'content', title: '内容', type: 'textarea', rows: 5, full: true},
+            {field: 'publishUser', title: '发布人', defaultValue: 'root'},
+            {field: 'status', title: '状态', type: 'select', defaultValue: 1,
+                options: [{value: 1, text: '已发布'}, {value: 0, text: '草稿'}]}
+        ]
+    });
+</script>
+</body>
+</html>

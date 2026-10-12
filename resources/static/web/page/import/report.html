@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>三大报表导入</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/import-page.js"></script>
+<script>
+    ImportPage.render({
+        title: '三大报表导入',
+        desc: '导入金蝶K8资产负债表 / 利润表 / 现金流量表，写入系统基础表并生成数据仓库编码',
+        reportTypeSelector: [
+            {value: 'BALANCE', text: '资产负债表'},
+            {value: 'PROFIT', text: '利润表'},
+            {value: 'CASHFLOW', text: '现金流量表'}
+        ],
+        preview: true,
+        previewTitle: '数据仓库编码预览(导入后需执行数据转换)',
+        onPreview: function (ctx, box) {
+            Api.get('/api/report/codes', {orgId: ctx.orgId, kjyearMonth: ctx.kjyearMonth}).then(function (list) {
+                Cw.renderTable(box, [
+                    {field: 'code', title: '编码', width: '80px'},
+                    {field: 'name', title: '科目名称'},
+                    {field: 'reportType', title: '报表'},
+                    {field: 'valueType', title: '取数类型'},
+                    {field: 'value', title: '金额(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.value); }},
+                    {field: 'dataSource', title: '来源'}
+                ], list.slice(0, 60), {emptyText: '该会计年月暂无数据，请先导入报表并执行数据转换'});
+            }).catch(function () {
+            });
+        }
+    });
+</script>
+</body>
+</html>

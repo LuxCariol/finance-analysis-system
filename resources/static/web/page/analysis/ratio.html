@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>比率分析</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/analysis.js"></script>
+<script>
+    AnalysisPage.indicatorPage({
+        title: '比率分析',
+        desc: '偿债能力、营运能力、盈利能力比率自动计算，并与预警标准比对',
+        api: '/api/analysis/ratio',
+        tips: '比率算法与预警标准全部维护在【模型管理 - 算法配置】中（表 t_mode），修改后无需重启系统即可生效。'
+            + ' 点击下方任意指标卡片，可查看该指标近 6 个月的趋势曲线。'
+    });
+</script>
+</body>
+</html>

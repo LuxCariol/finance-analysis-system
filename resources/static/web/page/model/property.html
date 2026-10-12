@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>报表与取值配置</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>报表与取值配置</h2>
+            <div class="desc">维护金蝶K8报表的"取值版/位置版"：Excel表头名称 ↔ 基础表字段 ↔ 取数类型</div>
+        </div>
+    </div>
+    <div class="tip">WIDE(横向取值版)用于资产负债表/利润表/现金流量表：一行一个科目名，多列对应年初/期末、本期/上期；
+        LONG(明细表)用于科目余额表/账龄分析：一行一条记录，每列对应一个字段，<b>行主键列</b>用于标识每条记录。</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="host"></div>
+</div>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var types = [
+        {value: 'BALANCE', text: '资产负债表'},
+        {value: 'PROFIT', text: '利润表'},
+        {value: 'CASHFLOW', text: '现金流量表'},
+        {value: 'KMYE', text: '科目余额表'},
+        {value: 'AGING', text: '账龄分析'}
+    ];
+    var host = Cw.el('#host');
+    var current = 'BALANCE';
+    Cw.el('#tabs').innerHTML = types.map(function (t) {
+        return '<div class="tab" data-type="' + t.value + '">' + t.text + '</div>';
+    }).join('');
+    Cw.els('#tabs .tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            current = tab.getAttribute('data-type');
+            renderTabs();
+            render();
+        });
+    });
+    function renderTabs() {
+        Cw.els('#tabs .tab').forEach(function (tab) {
+            tab.classList.toggle('active', tab.getAttribute('data-type') === current);
+        });
+    }
+    function render() {
+        host.innerHTML = '';
+        var box = document.createElement('div');
+        host.appendChild(box);
+        Cw.crud({
+            container: box,
+            title: '取值配置',
+            listUrl: '/api/model/property/list',
+            saveUrl: '/api/model/property/save',
+            deleteUrl: '/api/model/property/delete',
+            idField: 'id',
+            searchFields: [{field: 'subjectName', title: '科目/列名(不限)'}],
+            columns: [
+                {field: 'id', title: 'ID', width: '60px'},
+                {field: 'subjectName', title: 'Excel科目/位置'},
+                {field: 'sourceColumn', title: 'Excel表头列'},
+                {field: 'columnCode', title: '基础表字段'},
+                {field: 'reportType', title: '报表类型', width: '100px'},
+                {field: 'subjectLevel', title: '级次', width: '70px'},
+                {field: 'isKey', title: '行主键', width: '80px', render: function (r) {
+                    return r.isKey === 1 ? '<span class="badge yellow">是</span>' : '<span class="badge grey">否</span>';
+                }},
+                {field: 'orderNo', title: '排序', width: '70px'}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑'},
+                {action: 'delete', text: '删除', className: 'danger'}
+            ],
+            onBeforeSave: function (data) {
+                data.reportType = current;
+                data.reportCode = current + '_SHEET';
+                data.isActive = 1;
+                return data;
+            },
+            formFields: [
+                {field: 'subjectName', title: 'Excel科目/位置', required: true,
+                    placeholder: 'WIDE模式: 科目名称; LONG模式: 列标题'},
+                {field: 'sourceColumn', title: 'Excel表头列', required: true, placeholder: '如: 期末余额 / 科目代码'},
+                {field: 'columnCode', title: '基础表字段', required: true, placeholder: '如: QM_ZCZJ / SUBJECT_CODE'},
+                {field: 'reportType', title: '报表类型', type: 'select', disabled: true,
+                    options: types.map(function (t) { return {value: t.value, text: t.text}; })},
+                {field: 'subjectLevel', title: '科目级次', type: 'number', defaultValue: 1},
+                {field: 'colIndex', title: '列顺序', type: 'number', defaultValue: 0},
+                {field: 'isKey', title: '行主键列', type: 'select', defaultValue: 0,
+                    options: [{value: 1, text: '是'}, {value: 0, text: '否'}]},
+                {field: 'defaultValue', title: '默认值', defaultValue: '0.00'},
+                {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99}
+            ]
+        });
+    }
+    renderTabs();
+    render();
+</script>
+</body>
+</html>

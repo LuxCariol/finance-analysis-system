@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.finance.mapper.SysUserMapper">
+
+    <!-- 用户列表(带公司名称) -->
+    <select id="selectList" parameterType="com.qst.finance.model.SysUser" resultType="com.qst.finance.model.SysUser">
+        SELECT u.id, u.user_name, u.account_name, u.locked, u.account_type, u.create_user_id, u.description,
+               u.create_time, u.account_port_type, u.chrid, u.org_id, o.org_name
+        FROM t_sys_user u
+        LEFT JOIN t_org_info o ON o.id = u.org_id
+        <where>
+            <if test="accountName != null and accountName != ''">
+                AND u.account_name LIKE CONCAT('%', #{accountName}, '%')
+            </if>
+            <if test="userName != null and userName != ''">
+                AND u.user_name LIKE CONCAT('%', #{userName}, '%')
+            </if>
+            <if test="locked != null">
+                AND u.locked = #{locked}
+            </if>
+            <if test="orgId != null">
+                AND u.org_id = #{orgId}
+            </if>
+        </where>
+        ORDER BY u.id
+    </select>
+
+    <!-- 用户可访问的菜单: root 返回所有菜单, 其他用户按角色权限返回 -->
+    <select id="selectMenusByUserId" resultType="com.qst.finance.model.SysResources">
+        SELECT DISTINCT r.id, r.name, r.parent_id, r.res_key, r.type, r.res_url, r.order_no, r.icon, r.is_hide, r.description
+        FROM t_sys_resources r
+        <if test="root == false">
+            INNER JOIN t_sys_role_action ra ON ra.res_id = r.id
+            INNER JOIN t_sys_user_role ur ON ur.role_id = ra.role_id
+        </if>
+        <where>
+            r.is_hide = 0
+            <if test="root == false">
+                AND ur.user_id = #{userId}
+            </if>
+        </where>
+        ORDER BY r.parent_id, r.order_no, r.id
+    </select>
+</mapper>

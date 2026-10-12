@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>利润表</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/report.js"></script>
+<script>
+    ReportPage.render({
+        title: '利润表',
+        desc: '数据来源：金蝶K8 利润表导入，展示本期金额与上期金额对比（损益预测基础数据）',
+        api: '/api/report/profit'
+    });
+</script>
+</body>
+</html>

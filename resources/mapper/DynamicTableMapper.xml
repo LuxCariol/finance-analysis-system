@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.finance.mapper.DynamicTableMapper">
+
+    <!-- 动态列表 + 动态值的插入语句, 表名/列名由服务层依据 information_schema 白名单校验 -->
+    <insert id="insertOne">
+        INSERT INTO ${table}
+        (<foreach collection="columns" item="col" separator=",">${col}</foreach>)
+        VALUES
+        (<foreach collection="columns" item="col" separator=",">#{row[${col}]}</foreach>)
+    </insert>
+
+    <delete id="deleteByMonth">
+        DELETE FROM ${table} WHERE ORG_ID = #{orgId} AND KJYEAR_MONTH = #{kjyearMonth}
+    </delete>
+
+    <update id="updateFlagByMonth">
+        UPDATE ${table} SET FORMAT_FLAG = #{flag} WHERE ORG_ID = #{orgId} AND KJYEAR_MONTH = #{kjyearMonth}
+    </update>
+
+    <select id="selectByMonth" resultType="map">
+        SELECT * FROM ${table} WHERE ORG_ID = #{orgId} AND KJYEAR_MONTH = #{kjyearMonth}
+    </select>
+
+    <select id="countByMonth" resultType="int">
+        SELECT COUNT(1) FROM ${table} WHERE ORG_ID = #{orgId} AND KJYEAR_MONTH = #{kjyearMonth}
+    </select>
+
+    <select id="selectUnTransformed" resultType="map">
+        SELECT * FROM ${table} WHERE ORG_ID = #{orgId} AND KJYEAR_MONTH = #{kjyearMonth}
+        <if test="true">AND (FORMAT_FLAG = 'N' OR FORMAT_FLAG IS NULL)</if>
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(1) FROM ${table} WHERE ORG_ID = #{orgId}
+    </select>
+</mapper>

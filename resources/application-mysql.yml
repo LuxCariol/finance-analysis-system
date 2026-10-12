@@ -1,0 +1,45 @@
+# ============================================================
+# 生产/正式环境 : MySQL 8 + Redis  (与项目部署环境一致)
+# 启动方式: java -jar finance-analysis-system.jar --spring.profiles.active=mysql
+# ============================================================
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/cw_finance?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&createDatabaseIfNotExist=true
+    username: root
+    password: 123456
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 50
+      max-wait: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+      filters: stat,wall
+      stat:
+        slow-sql-millis: 2000
+        log-slow-sql: true
+  sql:
+    init:
+      # 首次启动自动建库表并初始化数据；重复启动时忽略主键重复错误
+      mode: always
+      continue-on-error: true
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+      encoding: UTF-8
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 0
+    password:
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 2
+
+finance:
+  cache-type: auto
+  demo-init: false

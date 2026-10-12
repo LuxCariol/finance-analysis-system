@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>投资计算</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>投资计算</h2>
+            <div class="desc">根据投资总额、折现率与年度现金流，计算净现值(NPV)、内部收益率(IRR)与投资回收期</div>
+        </div>
+    </div>
+    <div class="tip">投资计算为独立测算模型：可直接按"年新增收入 / 年运营成本"测算，也可在高级模式中逐期录入现金流。</div>
+    <div class="card">
+        <h3>测算参数</h3>
+        <div class="form-grid" style="grid-template-columns:130px 200px 130px 200px">
+            <div class="lbl">投资总额(元)</div>
+            <div><input type="number" id="investAmount" value="12000000"></div>
+            <div class="lbl">折现率(%)</div>
+            <div><input type="number" id="discountRate" value="10"></div>
+            <div class="lbl">测算年数</div>
+            <div><input type="number" id="years" value="6"></div>
+            <div class="lbl">年新增收入(元)</div>
+            <div><input type="number" id="annualRevenue" value="16000000"></div>
+            <div class="lbl">年运营成本(元)</div>
+            <div><input type="number" id="annualCost" value="11200000"></div>
+            <div class="lbl">年现金流(可选)</div>
+            <div class="full"><input type="text" id="cashFlows" placeholder="逐期现金流，英文逗号分隔，如 4800000,4800000,5200000">
+                <span class="text-light" style="font-size:12px">填写后优先按逐期现金流计算</span></div>
+        </div>
+        <div style="margin-top:14px">
+            <button class="btn primary" id="calcBtn">开始计算</button>
+        </div>
+    </div>
+    <div class="card"><h3>测算结论</h3><div id="conclusion" style="line-height:1.9">请点击【开始计算】</div></div>
+    <div class="card"><h3>计算结果</h3><div id="kpiBox"><div class="empty">暂无结果</div></div></div>
+    <div class="grid-2">
+        <div class="card"><h3>年度现金流与累计净额</h3><div class="chart" id="cashChart"></div></div>
+        <div class="card"><h3>折现累计(投资回收)</h3><div class="chart" id="npvChart"></div></div>
+    </div>
+    <div class="card"><h3>计算明细</h3><div id="tableBox"></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    Cw.el('#calcBtn').addEventListener('click', calc);
+
+    function payload() {
+        var flowsText = Cw.el('#cashFlows').value.trim();
+        var payload = {
+            investAmount: Cw.el('#investAmount').value,
+            discountRate: Cw.num(Cw.el('#discountRate').value) / 100,
+            years: Cw.el('#years').value,
+            annualRevenue: Cw.el('#annualRevenue').value,
+            annualCost: Cw.el('#annualCost').value
+        };
+        if (flowsText) {
+            payload.cashFlows = flowsText.split(',').map(function (v) { return v.trim(); }).filter(function (v) { return v; });
+        }
+        return payload;
+    }
+
+    function calc() {
+        Cw.el('#conclusion').textContent = '计算中...';
+        Api.post('/api/analysis/investment', payload()).then(function (data) {
+            Cw.el('#conclusion').textContent = data.conclusion;
+            Cw.kpiList(Cw.el('#kpiBox'), [
+                {label: '净现值 NPV', value: Cw.fmtMoney(data.npv) + ' 元', color: Cw.num(data.npv) >= 0 ? 'green' : 'red',
+                    sub: '折现率 ' + Cw.fmtPercent(data.discountRate)},
+                {label: '内部收益率 IRR', value: data.irrDisplay, color: 'primary', sub: 'IRR 越高项目越优'},
+                {label: '投资回报率 ROI', value: data.roiDisplay, color: 'primary', sub: '净现金流 / 投资总额'},
+                {label: '静态投资回收期', value: (data.paybackPeriod === null ? '-' : data.paybackPeriod) + ' 年', color: 'orange',
+                    sub: '累计现金流转正的期数'}
+            ]);
+            var details = data.details || [];
+            Cw.renderTable(Cw.el('#tableBox'), [
+                {field: 'period', title: '期数', render: function (r) { return '第 ' + r.period + ' 年'; }},
+                {field: 'cashFlow', title: '现金流(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.cashFlow); }},
+                {field: 'presentValue', title: '折现值(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.presentValue); }},
+                {field: 'cumulative', title: '累计现金流(元)', align: 'right', render: function (r) { return Cw.fmtMoney(r.cumulative); }},
+                {field: 'discountedCumulative', title: '累计折现值(元)', align: 'right',
+                    render: function (r) { return Cw.fmtMoney(r.discountedCumulative); }}
+            ], details);
+            var categories = details.map(function (r) { return '第' + r.period + '年'; });
+            CwChart.line(Cw.el('#cashChart'), categories, [
+                {name: '年现金流', data: details.map(function (r) { return Cw.num(r.cashFlow); }), type: 'bar'},
+                {name: '累计现金流', data: details.map(function (r) { return Cw.num(r.cumulative); }), type: 'line'}
+            ], {unit: '元'});
+            CwChart.line(Cw.el('#npvChart'), categories, [
+                {name: '累计折现值', data: details.map(function (r) { return Cw.num(r.discountedCumulative); }), type: 'line', area: true}
+            ], {unit: '元'});
+        }).catch(function (e) {
+            Cw.el('#conclusion').textContent = '计算失败: ' + e.message;
+        });
+    }
+
+    calc();
+</script>
+</body>
+</html>

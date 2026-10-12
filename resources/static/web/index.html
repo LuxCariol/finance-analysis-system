@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>金融财务分析系统</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="layout">
+    <div class="sidebar" id="sidebar">
+        <div class="logo">金融财务分析<span>财务分析系统</span></div>
+        <div id="menuBox"></div>
+    </div>
+    <div class="main">
+        <div class="topbar">
+            <div class="crumb" id="crumb">首页概览</div>
+            <div class="user-info">
+                <span>当前用户：<b id="userName">-</b> <span id="userRole" class="text-light"></span></span>
+                <span class="text-light">缓存: <b id="cacheType">-</b></span>
+                <button class="btn small" id="logoutBtn">退出登录</button>
+            </div>
+        </div>
+        <div class="content">
+            <iframe id="frame" src="/web/page/dashboard.html" name="contentFrame"></iframe>
+        </div>
+    </div>
+</div>
+<script src="/web/js/api.js"></script>
+<script>
+    var frame = document.getElementById('frame');
+    var crumb = document.getElementById('crumb');
+
+    function openPage(url, name) {
+        if (!url) {
+            return;
+        }
+        frame.src = '/web/' + url;
+        crumb.textContent = name;
+        Array.prototype.slice.call(document.querySelectorAll('.menu-item')).forEach(function (item) {
+            item.classList.toggle('active', item.getAttribute('data-url') === url);
+        });
+    }
+
+    function renderMenu(nodes) {
+        var html = [];
+        (nodes || []).forEach(function (group) {
+            var children = group.children || [];
+            if (!children.length) {
+                html.push('<a class="menu-item" data-url="' + group.url + '" data-name="' + group.name + '">'
+                    + group.name + '</a>');
+                return;
+            }
+            html.push('<div class="menu-group"><div class="menu-title"><span>' + group.name
+                + '</span><span>▾</span></div><div class="menu-children">');
+            children.forEach(function (child) {
+                var grand = child.children || [];
+                if (!grand.length) {
+                    html.push('<a class="menu-item" data-url="' + (child.url || '') + '" data-name="' + group.name
+                        + ' / ' + child.name + '">' + child.name + '</a>');
+                } else {
+                    html.push('<div class="menu-title" style="padding-left:30px">' + child.name + '</div>');
+                    grand.forEach(function (item) {
+                        html.push('<a class="menu-item" data-url="' + (item.url || '') + '" data-name="' + group.name
+                            + ' / ' + child.name + ' / ' + item.name + '" style="padding-left:46px">' + item.name + '</a>');
+                    });
+                }
+            });
+            html.push('</div></div>');
+        });
+        document.getElementById('menuBox').innerHTML = html.join('');
+        Array.prototype.slice.call(document.querySelectorAll('.menu-item')).forEach(function (item) {
+            item.addEventListener('click', function () {
+                openPage(item.getAttribute('data-url'), item.getAttribute('data-name'));
+            });
+        });
+    }
+
+    Api.get('/api/auth/current').then(function (user) {
+        if (!user) {
+            window.location.href = '/web/login.html';
+            return null;
+        }
+        document.getElementById('userName').textContent = user.userName + '(' + user.accountName + ')';
+        document.getElementById('userRole').textContent = user.accountType === 0 ? '超级管理员' : '';
+        return Api.get('/api/auth/menu');
+    }).then(function (menu) {
+        if (!menu) {
+            return;
+        }
+        renderMenu(menu);
+        Array.prototype.slice.call(document.querySelectorAll('.menu-item')).forEach(function (item) {
+            if (item.getAttribute('data-url') === 'page/dashboard.html') {
+                item.classList.add('active');
+            }
+        });
+    }).catch(function (e) {
+        window.location.href = '/web/login.html';
+    });
+
+    Api.get('/api/auth/cache').then(function (type) {
+        document.getElementById('cacheType').textContent = type === 'redis' ? 'Redis' : '内存';
+    }).catch(function () {
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+        Api.post('/api/auth/logout', {}).then(function () {
+            window.location.href = '/web/login.html';
+        });
+    });
+</script>
+</body>
+</html>

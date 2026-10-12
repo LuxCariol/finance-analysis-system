@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>账龄分析导入</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/import-page.js"></script>
+<script>
+    ImportPage.render({
+        title: '账龄分析导入',
+        desc: '导入或计算应收、应付、预付、其他应收账龄，展示账龄区间、超期金额与风险提示',
+        reportType: 'AGING',
+        agingType: true,
+        preview: true,
+        previewTitle: '账龄分析结果',
+        onPreview: function (ctx, box) {
+            var agingType = Cw.el('#agingSel').value;
+            Api.get('/api/report/aging', {
+                orgId: ctx.orgId,
+                kjyearMonth: ctx.kjyearMonth,
+                agingType: agingType
+            }).then(function (data) {
+                var rows = data.list || [];
+                box.innerHTML = '<div class="grid-2"><div><div class="chart sm" id="agingPie"></div></div>'
+                    + '<div id="agingTable"></div></div>';
+                CwChart.pie(Cw.el('#agingPie'), rows.map(function (r) {
+                    return {name: r.projectName, value: Cw.num(r.balance)};
+                }));
+                Cw.renderTable(Cw.el('#agingTable'), [
+                    {field: 'projectName', title: '核算项目'},
+                    {field: 'balance', title: '余额', align: 'right', render: function (r) { return Cw.fmtMoney(r.balance); }},
+                    {field: 'overdueAmount', title: '超期金额', align: 'right', render: function (r) { return Cw.fmtMoney(r.overdueAmount); }},
+                    {field: 'overdueRate', title: '超期占比', align: 'right', render: function (r) { return Cw.fmtPercent(r.overdueRate); }},
+                    {field: 'risk', title: '风险提示', render: function (r) {
+                        return r.risk.indexOf('建议') >= 0 ? '<span class="badge orange">' + Cw.esc(r.risk) + '</span>'
+                            : '<span class="badge green">' + Cw.esc(r.risk) + '</span>';
+                    }}
+                ], rows, {emptyText: '该会计年月暂无账龄数据'});
+            }).catch(function () {
+            });
+        }
+    });
+</script>
+</body>
+</html>

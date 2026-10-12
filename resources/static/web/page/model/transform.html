@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数据转换</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h2>数据全量转换(ETL)</h2>
+            <div class="desc">按编码映射配置将基础表数据转换到数据仓库结果表，并自动执行算法模型计算与预警生成</div>
+        </div>
+        <div class="toolbar">
+            <span class="text-light">公司</span><select id="orgSel" style="width:210px"></select>
+            <span class="text-light">会计年月</span><input type="month" id="monthSel">
+            <button class="btn primary" id="runBtn">执行数据全量转换</button>
+            <button class="btn" id="refreshBtn">刷新状态</button>
+        </div>
+    </div>
+    <div class="tip">转换流程：基础表(资产负债表/利润表/现金流量表) → 编码映射(t_code_mapper) → 数据仓库结果表(t_report_result)
+        → 算法模型(t_mode)计算比率、杜邦与预警指标 → 生成预警记录(t_warn_record)。重复执行会覆盖该会计年月的转换结果。</div>
+    <div class="card"><h3>转换前状态</h3><div id="statusBox"></div></div>
+    <div class="card" id="resultCard" style="display:none"><h3>转换结果</h3><div id="resultBox"></div></div>
+    <div class="card"><h3>预警结果</h3><div id="warnBox"></div></div>
+</div>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var state = {orgId: 1, month: ''};
+    Cw.orgOptions(function (options) {
+        var select = Cw.el('#orgSel');
+        select.innerHTML = options.map(function (o) {
+            return '<option value="' + o.value + '">' + o.text + '</option>';
+        }).join('');
+        select.value = '1';
+        loadStatus();
+    });
+    Cw.fillMonth('#monthSel', new Date().toISOString().slice(0, 7), loadStatus);
+    Cw.el('#runBtn').addEventListener('click', run);
+    Cw.el('#refreshBtn').addEventListener('click', loadStatus);
+
+    function params() {
+        state.orgId = Cw.el('#orgSel').value;
+        state.month = Cw.el('#monthSel').value;
+        return {orgId: state.orgId, kjyearMonth: state.month};
+    }
+
+    function loadStatus() {
+        Api.get('/api/etl/status', params()).then(function (data) {
+            Cw.kpiList(Cw.el('#statusBox'), [
+                {label: '已转换编码数(ETL)', value: data.etlCount + ' 条', color: 'primary'},
+                {label: '算法计算结果', value: data.algoCount + ' 条', color: 'green'},
+                {label: '预警记录', value: data.warnCount + ' 条', color: data.warnCount > 0 ? 'orange' : 'green'},
+                {label: '会计年月', value: data.kjyearMonth, color: 'primary'}
+            ]);
+            var columns = [
+                {field: 'resultName', title: '指标'},
+                {field: 'resultValue', title: '指标值', align: 'right', render: function (r) { return Cw.fmtNum(r.resultValue, 4); }},
+                {field: 'warnLevel', title: '级别', render: function (r) { return Cw.levelBadge(r.warnLevel, null); }},
+                {field: 'warnDesc', title: '预警说明'},
+                {field: 'advise', title: '调整建议'},
+                {field: 'createTime', title: '生成时间'}
+            ];
+            Api.get('/api/etl/warn', params()).then(function (list) {
+                Cw.renderTable(Cw.el('#warnBox'), columns, list, {emptyText: '暂无预警记录，指标均在健康区间'});
+            }).catch(function () {
+                Cw.el('#warnBox').innerHTML = '<div class="empty">预警记录加载失败</div>';
+            });
+        }).catch(function (e) {
+            Cw.el('#statusBox').innerHTML = '<div class="empty">加载失败: ' + Cw.esc(e.message) + '</div>';
+        });
+    }
+
+    function run() {
+        var btn = Cw.el('#runBtn');
+        btn.disabled = true;
+        btn.textContent = '转换中...';
+        Api.post('/api/etl/transform', params()).then(function (result) {
+            Cw.el('#resultCard').style.display = 'block';
+            Cw.el('#resultBox').innerHTML = '<div class="kpi-list">'
+                + '<div class="kpi primary"><div class="label">批次号</div><div class="value" style="font-size:15px">'
+                + Cw.esc(result.batchId) + '</div></div>'
+                + '<div class="kpi primary"><div class="label">基础表读取行数</div><div class="value">' + result.sourceRows + '</div></div>'
+                + '<div class="kpi green"><div class="label">映射生成编码数</div><div class="value">' + result.mappedRows + '</div></div>'
+                + '<div class="kpi green"><div class="label">算法计算结果</div><div class="value">' + result.algoRows + '</div></div>'
+                + '<div class="kpi orange"><div class="label">预警记录</div><div class="value">' + result.warnRows + '</div></div>'
+                + '<div class="kpi primary"><div class="label">耗时</div><div class="value">' + result.costMillis + ' ms</div></div>'
+                + '</div><div class="tip" style="margin-top:12px">' + Cw.esc((result.messages || []).join('；')) + '</div>';
+            Cw.toast('数据转换完成', 'success');
+            loadStatus();
+        }).catch(function (e) {
+            Cw.toast(e.message, 'error');
+            Cw.el('#resultCard').style.display = 'block';
+            Cw.el('#resultBox').innerHTML = '<div class="empty up">' + Cw.esc(e.message) + '</div>';
+        }).then(function () {
+            btn.disabled = false;
+            btn.textContent = '执行数据全量转换';
+        });
+    }
+</script>
+</body>
+</html>

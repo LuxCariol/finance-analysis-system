@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>菜单管理</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/app.js"></script>
+<script>
+    var menus = [];
+    Api.get('/api/sys/menu/list').then(function (list) {
+        menus = list || [];
+        render();
+    });
+
+    function render() {
+        var parentName = {};
+        menus.forEach(function (m) {
+            parentName[m.id] = m.name;
+        });
+        Cw.crud({
+            title: '菜单管理',
+            desc: '维护后台菜单目录与页面地址（后台菜单表 t_sys_resources）',
+            listUrl: '/api/sys/menu/list',
+            saveUrl: '/api/sys/menu/save',
+            deleteUrl: '/api/sys/menu/delete',
+            columns: [
+                {field: 'id', title: 'ID', width: '60px'},
+                {field: 'name', title: '菜单名称'},
+                {field: 'parentId', title: '上级菜单', width: '140px', render: function (r) {
+                    return r.parentId === 0 ? '<span class="badge grey">顶级菜单</span>' : Cw.esc(parentName[r.parentId] || r.parentId);
+                }},
+                {field: 'resKey', title: '菜单键值', width: '140px'},
+                {field: 'type', title: '类型', width: '80px', render: function (r) {
+                    return r.type === '0' ? '<span class="badge grey">目录</span>' : '<span class="badge green">页面</span>';
+                }},
+                {field: 'resUrl', title: '菜单地址'},
+                {field: 'orderNo', title: '排序', width: '70px'},
+                {field: 'isHide', title: '显示', width: '70px', render: function (r) {
+                    return r.isHide === 1 ? '<span class="badge grey">隐藏</span>' : '<span class="badge green">显示</span>';
+                }},
+                {field: 'description', title: '描述'}
+            ],
+            rowActions: [
+                {action: 'edit', text: '编辑'},
+                {action: 'delete', text: '删除', className: 'danger'}
+            ],
+            formFields: [
+                {field: 'name', title: '菜单名称', required: true},
+                {field: 'parentId', title: '上级菜单', type: 'select', defaultValue: 0,
+                    options: [{value: 0, text: '顶级菜单'}].concat(menus.filter(function (m) {
+                        return m.parentId === 0;
+                    }).map(function (m) {
+                        return {value: m.id, text: m.name};
+                    }))},
+                {field: 'resKey', title: '菜单键值', placeholder: '如 sys_user'},
+                {field: 'type', title: '菜单类型', type: 'select', defaultValue: '1',
+                    options: [{value: '0', text: '目录'}, {value: '1', text: '页面'}]},
+                {field: 'resUrl', title: '菜单地址', placeholder: '如 page/sys/user.html'},
+                {field: 'icon', title: '图标标识'},
+                {field: 'orderNo', title: '排序号', type: 'number', defaultValue: 99},
+                {field: 'isHide', title: '是否隐藏', type: 'select', defaultValue: 0,
+                    options: [{value: 0, text: '显示'}, {value: 1, text: '隐藏'}]},
+                {field: 'description', title: '描述', type: 'textarea', rows: 2}
+            ]
+        });
+    }
+</script>
+</body>
+</html>

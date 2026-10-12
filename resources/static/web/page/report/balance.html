@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>资产负债表</title>
+    <link rel="stylesheet" href="/web/css/app.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="/web/js/api.js"></script>
+<script src="/web/js/charts.js"></script>
+<script src="/web/js/app.js"></script>
+<script src="/web/js/report.js"></script>
+<script>
+    ReportPage.render({
+        title: '资产负债表',
+        desc: '数据来源：金蝶K8 资产负债表导入 → 数据转换 → 数据仓库编码',
+        api: '/api/report/balance'
+    });
+</script>
+</body>
+</html>
