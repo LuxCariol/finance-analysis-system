@@ -115,8 +115,9 @@ password: 123456
 执行：
 
 ```powershell
-mysql -uroot -p123456 --default-character-set=utf8mb4 -e "source D:/code/CodexProgram/ShixunCode/financial-analysis/sql/financial_analysis.sql"
-mysql -uroot -p123456 --default-character-set=utf8mb4 -e "source D:/code/CodexProgram/ShixunCode/financial-analysis/sql/seed_admin.sql"
+cd <项目根目录>
+mysql -uroot -p123456 --default-character-set=utf8mb4 -e "source sql/financial_analysis.sql"
+mysql -uroot -p123456 --default-character-set=utf8mb4 -e "source sql/seed_admin.sql"
 ```
 
 首次启动会自动导入 `backend/src/main/resources/demo-data/2021` 下的 2021 年 12 个月样例报表，并生成数据转换结果。
