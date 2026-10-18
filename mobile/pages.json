@@ -1,0 +1,150 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/home/home",
+      "style": {
+        "navigationBarTitleText": "经营报告",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/analysis/index",
+      "style": {
+        "navigationBarTitleText": "财务分析",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/forecast/profit",
+      "style": {
+        "navigationBarTitleText": "损益预测",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/reports/profit",
+      "style": {
+        "navigationBarTitleText": "利润表",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/reports/balance",
+      "style": {
+        "navigationBarTitleText": "资产负债表",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/reports/cashflow",
+      "style": {
+        "navigationBarTitleText": "现金流量表",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/analysis/balance",
+      "style": {
+        "navigationBarTitleText": "资产负债分析",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/analysis/profit",
+      "style": {
+        "navigationBarTitleText": "利润分析",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/analysis/cashflow",
+      "style": {
+        "navigationBarTitleText": "现金流量分析",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/analysis/ratio",
+      "style": {
+        "navigationBarTitleText": "比率分析",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/finance/detail",
+      "style": {
+        "navigationBarTitleText": "数据详情",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/investment/index",
+      "style": {
+        "navigationBarTitleText": "投资预测",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/news/list",
+      "style": {
+        "navigationBarTitleText": "财经资讯",
+        "navigationBarBackgroundColor": "#12233f",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "金融财务分析",
+    "navigationBarBackgroundColor": "#12233f",
+    "backgroundColor": "#f2f5f9",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8793a6",
+    "selectedColor": "#0d7c78",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "经营报告"
+      },
+      {
+        "pagePath": "pages/analysis/index",
+        "text": "财务分析"
+      },
+      {
+        "pagePath": "pages/forecast/profit",
+        "text": "损益预测"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  }
+}
