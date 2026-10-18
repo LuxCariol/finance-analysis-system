@@ -8,3 +8,8 @@ web/dist/
 tools/current.xml
 tools/chrome-profile*/
 tools/phone-window.xml
+backend/src/main/webapp/admin/
+backend/src/main/resources/ace/
+backend/src/main/resources/js/
+mobile/unpackage/
+mobile/.hbuilderx/
