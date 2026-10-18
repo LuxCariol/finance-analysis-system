@@ -1,0 +1,10 @@
+.idea/
+*.iml
+**/target/
+**/node_modules/
+**/logs/
+*.log
+web/dist/
+tools/current.xml
+tools/chrome-profile*/
+tools/phone-window.xml
