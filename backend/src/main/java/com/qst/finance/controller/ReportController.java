@@ -7,6 +7,7 @@ import com.qst.finance.service.ExcelImportService;
 import com.qst.finance.service.LoginUser;
 import com.qst.finance.service.MenuService;
 import com.qst.finance.service.PageSupport;
+import com.qst.finance.service.ReportConversionService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,13 +32,15 @@ public class ReportController {
     private final PageSupport pageSupport;
     private final MenuService menuService;
     private final ExcelImportService excelImportService;
+    private final ReportConversionService conversionService;
 
     public ReportController(JdbcTemplate jdbc, PageSupport pageSupport, MenuService menuService,
-                            ExcelImportService excelImportService) {
+                            ExcelImportService excelImportService, ReportConversionService conversionService) {
         this.jdbc = jdbc;
         this.pageSupport = pageSupport;
         this.menuService = menuService;
         this.excelImportService = excelImportService;
+        this.conversionService = conversionService;
     }
 
     @GetMapping("/tBasiProfitIndex")
@@ -310,6 +313,13 @@ public class ReportController {
         try (InputStream inputStream = file.getInputStream()) {
             ExcelImportService.ImportResult result = excelImportService.importExcel(inputStream,
                     file.getOriginalFilename(), subject, type, orgId, user == null ? "system" : user.getAccountName());
+            if (result.isSuccess()) {
+                try {
+                    conversionService.convert(orgId);
+                } catch (Exception ignored) {
+                    // The import is still successful even if the optional conversion step fails.
+                }
+            }
             return result.isSuccess() ? 1 : 0;
         } catch (Exception ex) {
             return 0;
