@@ -385,7 +385,9 @@
           <div class="panel">
             <div class="panel-head"><div><h3>最近导入数据</h3><p>当前公司最近 10 条报表记录</p></div></div>
             <el-table :data="recentImports" stripe class="data-table">
-              <el-table-column prop="kjyearMoth" label="会计期间" width="110"><template #default="{ row }">{{ periodText(row.kjyearMoth) }}</template></el-table-column>
+              <el-table-column prop="reportType" label="报表类型" width="140" />
+              <el-table-column prop="period" label="会计期间" width="130"><template #default="{ row }">{{ row.reportType === '账龄分析' ? row.period : periodText(row.period) }}</template></el-table-column>
+              <el-table-column prop="rowCount" label="数据行数" width="100" align="right" />
               <el-table-column prop="impTime" label="导入时间" />
               <el-table-column prop="impUser" label="导入人" />
             </el-table>
@@ -531,6 +533,29 @@
             <div class="stat-card teal"><div class="stat-label">标准结果总数</div><div class="stat-value">{{ dashboard?.counts?.results || 0 }}<small>条</small></div></div>
             <div class="stat-card gold"><div class="stat-label">报表记录</div><div class="stat-value">{{ dashboard?.counts?.reports || 0 }}<small>条</small></div></div>
             <div class="stat-card rose"><div class="stat-label">公司数量</div><div class="stat-value">{{ companies.length }}<small>家</small></div></div>
+          </div>
+          <div class="panel conversion-result-panel">
+            <div class="panel-head">
+              <div><h3>转换结果</h3><p>导入后自动生成，可在这里核对最新期间的编码和金额</p></div>
+              <div class="toolbar-actions">
+                <el-select v-model="conversionPeriod" placeholder="会计期间" clearable @change="loadConversionResults" style="width: 150px">
+                  <el-option v-for="item in periods" :key="item" :label="periodText(item)" :value="item" />
+                </el-select>
+                <el-input v-model="conversionKeyword" placeholder="编码或名称" clearable style="width: 170px" @keyup.enter="loadConversionResults" />
+                <el-button :icon="Search" @click="loadConversionResults">查询</el-button>
+              </div>
+            </div>
+            <el-table :data="conversionRows" stripe height="340" class="data-table">
+              <el-table-column prop="period" label="会计期间" width="120"><template #default="{ row }">{{ periodText(row.period) }}</template></el-table-column>
+              <el-table-column prop="codeNo" label="标准编码" width="150" />
+              <el-table-column prop="codeName" label="指标名称" min-width="220" />
+              <el-table-column prop="dataValue" label="数值" align="right" width="180"><template #default="{ row }">{{ money(row.dataValue) }}</template></el-table-column>
+            </el-table>
+            <div class="pagination-row">
+              <el-pagination background layout="total, prev, pager, next" :total="conversionTotal"
+                v-model:current-page="conversionPage" v-model:page-size="conversionSize"
+                @current-change="loadConversionResults" />
+            </div>
           </div>
         </template>
 
@@ -700,6 +725,12 @@ const importType = ref('profit')
 const uploadLoading = ref(false)
 const bulkResult = ref(null)
 const recentImports = ref([])
+const conversionRows = ref([])
+const conversionTotal = ref(0)
+const conversionPage = ref(1)
+const conversionSize = ref(10)
+const conversionKeyword = ref('')
+const conversionPeriod = ref('')
 const agingType = ref(7)
 const agingData = ref({ rows: [], summary: {} })
 const users = ref([])
@@ -871,13 +902,25 @@ async function loadPage(page) {
   if (page === 'code-library') return loadCodeLibrary()
   if (page === 'code-mapper') return loadCodeMappers()
   if (page === 'modes') return loadModes()
+  if (page === 'convert') return loadConversionResults()
   if (page === 'news') return loadNews()
   if (page === 'dashboard') return loadDashboard()
 }
 
 async function loadRecentImports() {
-  const data = await api.reports({ type: 'profit', orgId: orgId.value, page: 1, size: 10 })
-  recentImports.value = data.rows
+  recentImports.value = await api.importHistory(orgId.value)
+}
+
+async function loadConversionResults() {
+  const data = await api.conversionResults({
+    orgId: orgId.value,
+    period: conversionPeriod.value,
+    keyword: conversionKeyword.value,
+    page: conversionPage.value,
+    size: conversionSize.value
+  })
+  conversionRows.value = data.rows || []
+  conversionTotal.value = data.total || 0
 }
 
 async function handleMenu(index) {
@@ -907,9 +950,17 @@ async function onReportFile(event) {
   if (!file) return
   uploadLoading.value = true
   try {
-    await api.importReport(file, reportType.value, orgId.value)
-    ElMessage.success('导入成功')
+    const result = await api.importReport(file, reportType.value, orgId.value)
+    if (result.period) {
+      await loadPeriods()
+      period.value = result.period
+      conversionPeriod.value = result.period
+    }
+    ElMessage.success(`导入成功：读取 ${result.count} 项，自动转换 ${result.converted || 0} 条标准结果`)
     await loadReports()
+    await loadDashboard()
+    await loadRecentImports()
+    await loadConversionResults()
   } catch (error) { ElMessage.error(error.message) } finally {
     uploadLoading.value = false
     event.target.value = ''
@@ -921,10 +972,17 @@ async function onImportFile(event) {
   if (!file) return
   uploadLoading.value = true
   try {
-    await api.importReport(file, importType.value, orgId.value)
-    ElMessage.success('导入成功')
+    const result = await api.importReport(file, importType.value, orgId.value)
+    if (result.period) {
+      await loadPeriods()
+      period.value = result.period
+      conversionPeriod.value = result.period
+    }
+    ElMessage.success(`导入成功：读取 ${result.count} 项，自动转换 ${result.converted || 0} 条标准结果`)
     await loadRecentImports()
-    await loadPeriods()
+    await loadReports()
+    await loadDashboard()
+    await loadConversionResults()
   } catch (error) { ElMessage.error(error.message) } finally {
     uploadLoading.value = false
     event.target.value = ''
@@ -938,9 +996,12 @@ async function onBulkFiles(event) {
   try {
     const result = await api.bulkImport(files, orgId.value)
     bulkResult.value = result
-    ElMessage.success(`成功导入 ${result.success} 个文件`)
-    await loadRecentImports()
+    ElMessage.success(`成功导入 ${result.success} 个文件，自动转换 ${result.converted || 0} 条标准结果`)
     await loadPeriods()
+    await loadRecentImports()
+    await loadReports()
+    await loadDashboard()
+    await loadConversionResults()
   } catch (error) { ElMessage.error(error.message) } finally {
     uploadLoading.value = false
     event.target.value = ''
@@ -1127,6 +1188,7 @@ async function runConvert() {
   try {
     convertResult.value = await api.convert(orgId.value)
     await loadDashboard()
+    await loadConversionResults()
     ElMessage.success('数据转换成功')
   } catch (error) { ElMessage.error(error.message) } finally { convertLoading.value = false }
 }
@@ -1139,6 +1201,7 @@ watch(selectedOrg, async value => {
   if (active.value === 'dashboard') await loadDashboard()
   else if (active.value === 'reports') { reportPage.value = 1; await loadReports() }
   else if (active.value === 'aging') await loadAging()
+  else if (active.value === 'convert') await loadConversionResults()
 })
 
 onMounted(async () => {

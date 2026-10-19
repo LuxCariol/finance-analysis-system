@@ -267,7 +267,7 @@ public class ExcelImportService {
                 return ImportResult.fail("不支持的报表类型: " + subject);
             }
             workbook.close();
-            return count > 0 ? ImportResult.ok(fileName, count, batchId)
+            return count > 0 ? ImportResult.ok(fileName, count, batchId, yearMonth)
                     : ImportResult.fail("未读取到可导入的数据，请检查文件是否为金蝶报表格式");
         } catch (Exception ex) {
             return ImportResult.fail("导入失败: " + ex.getMessage());
@@ -443,13 +443,13 @@ public class ExcelImportService {
                            String yearMonth, String batchId) {
         jdbc.update("DELETE FROM t_kmye WHERE ORG_ID=? AND KJYEAR_MOTH=?", orgId, yearMonth);
         DataFormatter formatter = new DataFormatter();
-        Row header = sheet.getRow(0);
+        Row header = findHeaderRow(sheet, KMYE_FIELDS, formatter);
         if (header == null) {
             return -1;
         }
         Map<Integer, String> columns = headerColumns(header, KMYE_FIELDS, formatter);
         int count = 0;
-        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+        for (int r = header.getRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) {
                 continue;
@@ -486,13 +486,13 @@ public class ExcelImportService {
         int ageType = type == null || type.trim().isEmpty() ? 1 : Integer.parseInt(type.trim());
         jdbc.update("DELETE FROM t_age_analysis WHERE ORG_ID=? AND KJYEAR_MOTH=? AND type=?", orgId, yearMonth, ageType);
         DataFormatter formatter = new DataFormatter();
-        Row header = sheet.getRow(0);
+        Row header = findHeaderRow(sheet, AGE_FIELDS, formatter);
         if (header == null) {
             return -1;
         }
         Map<Integer, String> columns = headerColumns(header, AGE_FIELDS, formatter);
         int count = 0;
-        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+        for (int r = header.getRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) {
                 continue;
@@ -533,6 +533,24 @@ public class ExcelImportService {
             }
         }
         return columns;
+    }
+
+    private Row findHeaderRow(Sheet sheet, Map<String, String> fields, DataFormatter formatter) {
+        int bestRow = -1;
+        int bestCount = 0;
+        int limit = Math.min(sheet.getLastRowNum(), 20);
+        for (int r = 0; r <= limit; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            int count = headerColumns(row, fields, formatter).size();
+            if (count > bestCount) {
+                bestCount = count;
+                bestRow = r;
+            }
+        }
+        return bestCount >= 2 ? sheet.getRow(bestRow) : null;
     }
 
     private Map<String, Object> common(String table, String fileName, String orgId, String user, String year,
@@ -625,13 +643,15 @@ public class ExcelImportService {
         private String message;
         private int count;
         private String batchId;
+        private String period;
 
-        public static ImportResult ok(String message, int count, String batchId) {
+        public static ImportResult ok(String message, int count, String batchId, String period) {
             ImportResult result = new ImportResult();
             result.success = true;
             result.message = message;
             result.count = count;
             result.batchId = batchId;
+            result.period = period;
             return result;
         }
 
@@ -656,6 +676,10 @@ public class ExcelImportService {
 
         public String getBatchId() {
             return batchId;
+        }
+
+        public String getPeriod() {
+            return period;
         }
     }
 }

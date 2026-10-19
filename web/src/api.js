@@ -75,6 +75,8 @@ export const api = {
     if (orgId) form.append('orgId', orgId)
     return http.post('/api/admin/reports/bulk-import', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+  importHistory: orgId => http.get('/api/admin/import-history', { params: { orgId } }),
+  conversionResults: params => http.get('/api/admin/conversion-results', { params }),
   aging: params => http.get('/api/admin/aging', { params }),
   codeLibrary: keyword => http.get('/api/admin/code-library', { params: { keyword } }),
   createCode: data => http.post('/api/admin/code-library', data),

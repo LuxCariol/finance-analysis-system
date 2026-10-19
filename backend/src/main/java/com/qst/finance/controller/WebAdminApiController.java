@@ -362,13 +362,38 @@ public class WebAdminApiController {
         if (file == null || file.isEmpty()) {
             return ApiResult.fail("请选择 Excel 文件");
         }
+        String detectedType = detectType(file.getOriginalFilename());
+        if (detectedType != null && !"aging".equals(detectedType) && !detectedType.equals(type)) {
+            return ApiResult.fail("文件类型与所选报表类型不匹配：当前选择 " + reportTypeLabel(type)
+                    + "，文件识别为 " + reportTypeLabel(detectedType));
+        }
         String subject = "profit".equals(type) ? "1" : "balance".equals(type) ? "2"
                 : "cashflow".equals(type) ? "5" : "3";
+        String resolvedOrg = org(orgId, user);
         try (InputStream input = file.getInputStream()) {
             ExcelImportService.ImportResult result = importService.importExcel(input, file.getOriginalFilename(),
-                    subject, null, org(orgId, user), user.getAccountName());
-            return result.isSuccess() ? ApiResult.ok("导入成功，共读取 " + result.getCount() + " 项", result)
-                    : ApiResult.fail(result.getMessage());
+                    subject, null, resolvedOrg, user.getAccountName());
+            if (!result.isSuccess()) {
+                return ApiResult.fail(result.getMessage());
+            }
+            int converted = 0;
+            String conversionMessage = "已自动转换";
+            try {
+                converted = conversionService.convert(resolvedOrg);
+            } catch (Exception ex) {
+                conversionMessage = "数据已导入，但自动转换失败: " + ex.getMessage();
+            }
+            Map<String, Object> data = ApiResult.map(
+                    "success", true,
+                    "message", result.getMessage(),
+                    "count", result.getCount(),
+                    "period", result.getPeriod(),
+                    "batchId", result.getBatchId(),
+                    "converted", converted,
+                    "conversionMessage", conversionMessage
+            );
+            return ApiResult.ok("导入成功，读取 " + result.getCount() + " 项，"
+                    + conversionMessage + (converted > 0 ? "（" + converted + " 条）" : ""), data);
         } catch (Exception ex) {
             return ApiResult.fail("导入失败: " + ex.getMessage());
         }
@@ -380,6 +405,7 @@ public class WebAdminApiController {
                                 HttpServletRequest request) {
         LoginUser user = apiSupport.require(request);
         int success = 0;
+        int converted = 0;
         List<String> failed = new ArrayList<String>();
         for (MultipartFile file : files) {
             String name = file.getOriginalFilename();
@@ -408,7 +434,105 @@ public class WebAdminApiController {
                 failed.add(name + ": " + ex.getMessage());
             }
         }
-        return ApiResult.ok("成功导入 " + success + " 个文件", ApiResult.map("success", success, "failed", failed));
+        if (success > 0) {
+            try {
+                converted = conversionService.convert(org(orgId, user));
+            } catch (Exception ex) {
+                failed.add("自动转换失败: " + ex.getMessage());
+            }
+        }
+        return ApiResult.ok("成功导入 " + success + " 个文件"
+                        + (converted > 0 ? "，生成 " + converted + " 条标准结果" : ""),
+                ApiResult.map("success", success, "failed", failed, "converted", converted));
+    }
+
+    @GetMapping("/import-history")
+    public ApiResult importHistory(@RequestParam(value = "orgId", required = false) String orgId,
+                                   HttpServletRequest request) {
+        LoginUser user = apiSupport.require(request);
+        String resolvedOrg = org(orgId, user);
+        List<Map<String, Object>> rows = new ArrayList<Map<String, Object>>();
+        appendHistory(rows, "利润表",
+                "SELECT KJYEAR_MOTH AS period,COUNT(*) AS rowCount,MAX(IMP_TIME) AS impTime,MAX(IMP_USER) AS impUser "
+                        + "FROM t_basi_profit WHERE ORG_ID=? GROUP BY KJYEAR_MOTH", resolvedOrg);
+        appendHistory(rows, "资产负债表",
+                "SELECT KJYEAR_MOTH AS period,COUNT(*) AS rowCount,MAX(IMP_TIME) AS impTime,MAX(IMP_USER) AS impUser "
+                        + "FROM t_basi_assets_and_liabilities WHERE ORG_ID=? GROUP BY KJYEAR_MOTH", resolvedOrg);
+        appendHistory(rows, "现金流量表",
+                "SELECT KJYEAR_MOTH AS period,COUNT(*) AS rowCount,MAX(IMP_TIME) AS impTime,MAX(IMP_USER) AS impUser "
+                        + "FROM t_basi_cash_flow WHERE ORG_ID=? GROUP BY KJYEAR_MOTH", resolvedOrg);
+        appendHistory(rows, "科目余额表",
+                "SELECT KJYEAR_MOTH AS period,COUNT(*) AS rowCount,MAX(IMP_TIME) AS impTime,MAX(IMP_USER) AS impUser "
+                        + "FROM t_kmye WHERE ORG_ID=? GROUP BY KJYEAR_MOTH", resolvedOrg);
+        appendHistory(rows, "账龄分析",
+                "SELECT CONCAT(KJYEAR_MOTH,' / ',`type`) AS period,COUNT(*) AS rowCount,"
+                        + "MAX(IMP_TIME) AS impTime,MAX(IMP_USER) AS impUser "
+                        + "FROM t_age_analysis WHERE ORG_ID=? GROUP BY KJYEAR_MOTH,`type`", resolvedOrg);
+        rows.sort((a, b) -> String.valueOf(b.get("impTime")).compareTo(String.valueOf(a.get("impTime"))));
+        return ApiResult.ok(rows.size() > 30 ? rows.subList(0, 30) : rows);
+    }
+
+    private void appendHistory(List<Map<String, Object>> target, String type, String sql, Object... args) {
+        for (Map<String, Object> row : DbUtils.query(jdbc, sql, args)) {
+            row.put("reportType", type);
+            target.add(row);
+        }
+    }
+
+    @GetMapping("/conversion-results")
+    public ApiResult conversionResults(
+            @RequestParam(value = "orgId", required = false) String orgId,
+            @RequestParam(value = "period", defaultValue = "") String period,
+            @RequestParam(value = "keyword", defaultValue = "") String keyword,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            HttpServletRequest request) {
+        LoginUser user = apiSupport.require(request);
+        String resolvedOrg = org(orgId, user);
+        StringBuilder where = new StringBuilder(" WHERE r.ORG_ID=?");
+        List<Object> args = new ArrayList<Object>();
+        args.add(resolvedOrg);
+        if (period != null && !period.isEmpty()) {
+            where.append(" AND r.RYEAR_AND_MONTH=?");
+            args.add(period);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            where.append(" AND (r.CODE_NO LIKE ? OR c.CODE_NAME LIKE ?)");
+            args.add("%" + keyword + "%");
+            args.add("%" + keyword + "%");
+        }
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int safePage = Math.max(page, 1);
+        long total = DbUtils.count(jdbc,
+                "SELECT COUNT(*) FROM t_report_result r LEFT JOIN t_code_libr c ON c.CODE_NO=r.CODE_NO" + where,
+                args.toArray());
+        List<Object> pageArgs = new ArrayList<Object>(args);
+        pageArgs.add((safePage - 1) * safeSize);
+        pageArgs.add(safeSize);
+        List<Map<String, Object>> rows = DbUtils.query(jdbc,
+                "SELECT r.RYEAR_AND_MONTH AS period,r.CODE_NO AS codeNo,c.CODE_NAME AS codeName,"
+                        + "r.DATA_VALUE AS dataValue FROM t_report_result r "
+                        + "LEFT JOIN t_code_libr c ON c.CODE_NO=r.CODE_NO" + where
+                        + " ORDER BY r.RYEAR_AND_MONTH DESC,r.CODE_NO LIMIT ?,?", pageArgs.toArray());
+        return ApiResult.ok(ApiResult.map("rows", rows, "total", total, "page", safePage, "size", safeSize));
+    }
+
+    private String detectType(String fileName) {
+        if (fileName == null) return null;
+        if (fileName.contains("损益表") || fileName.contains("利润表")) return "profit";
+        if (fileName.contains("资产负债表")) return "balance";
+        if (fileName.contains("现金流量表")) return "cashflow";
+        if (fileName.contains("科目余额表")) return "kmye";
+        if (fileName.contains("账龄分析")) return "aging";
+        return null;
+    }
+
+    private String reportTypeLabel(String type) {
+        if ("profit".equals(type)) return "利润表";
+        if ("balance".equals(type)) return "资产负债表";
+        if ("cashflow".equals(type)) return "现金流量表";
+        if ("kmye".equals(type)) return "科目余额表";
+        return "账龄分析";
     }
 
     @GetMapping("/aging")

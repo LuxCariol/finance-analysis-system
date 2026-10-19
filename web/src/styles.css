@@ -208,6 +208,7 @@ body {
 .convert-flow span { padding: 7px 12px; background: #fff; border: 1px solid #e7edf2; border-radius: 8px; }
 .convert-flow i { color: #a7b1bd; font-style: normal; }
 .convert-result { margin-top: 16px; color: #0d7c78; font-size: 12px; }
+.conversion-result-panel { margin-top: 18px; }
 
 .ratio-page-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .ratio-detail-card { padding-bottom: 8px; }

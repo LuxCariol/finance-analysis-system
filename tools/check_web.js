@@ -81,6 +81,13 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 900));
   const mapperText = await page.evaluate(() => document.body.innerText);
   console.log('mapper-page:', mapperText.includes('原始报表字段') ? 'PASS' : 'FAIL');
+  await page.evaluate(() => {
+    const item = [...document.querySelectorAll('.el-menu-item')].find(node => node.textContent.trim() === '数据转换');
+    item?.click();
+  });
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  const conversionText = await page.evaluate(() => document.body.innerText);
+  console.log('conversion-page:', conversionText.includes('转换结果') && conversionText.includes('标准编码') ? 'PASS' : 'FAIL');
   await page.screenshot({
     path: path.join(__dirname, 'web-report.png'),
     fullPage: true
