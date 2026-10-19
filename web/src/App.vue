@@ -823,7 +823,13 @@ async function loadDashboard() {
 
 function renderDashboardCharts() {
   if (profitChartEl.value && dashboard.value?.profitChart) {
-    profitChart = profitChart || echarts.init(profitChartEl.value)
+    if (profitChart && profitChart.getDom() !== profitChartEl.value) {
+      profitChart.dispose()
+      profitChart = null
+    }
+    if (!profitChart || profitChart.isDisposed()) {
+      profitChart = echarts.init(profitChartEl.value)
+    }
     const data = dashboard.value.profitChart
     profitChart.setOption({
       color: ['#0d7c78', '#d8a03d'],
@@ -836,7 +842,13 @@ function renderDashboardCharts() {
     })
   }
   if (cashChartEl.value && dashboard.value?.cashChart) {
-    cashChart = cashChart || echarts.init(cashChartEl.value)
+    if (cashChart && cashChart.getDom() !== cashChartEl.value) {
+      cashChart.dispose()
+      cashChart = null
+    }
+    if (!cashChart || cashChart.isDisposed()) {
+      cashChart = echarts.init(cashChartEl.value)
+    }
     const data = dashboard.value.cashChart
     cashChart.setOption({
       color: ['#0d7c78', '#4569a8', '#c85b54'],
@@ -865,7 +877,13 @@ async function loadAging() {
     agingData.value = await api.aging({ type: agingType.value, orgId: orgId.value, period: period.value })
     await nextTick()
     if (agingChartEl.value) {
-      agingChart = agingChart || echarts.init(agingChartEl.value)
+      if (agingChart && agingChart.getDom() !== agingChartEl.value) {
+        agingChart.dispose()
+        agingChart = null
+      }
+      if (!agingChart || agingChart.isDisposed()) {
+        agingChart = echarts.init(agingChartEl.value)
+      }
       const summary = agingData.value.summary || {}
       agingChart.setOption({
         color: ['#0d7c78'],
@@ -1215,7 +1233,9 @@ onBeforeUnmount(() => {
   profitChart?.dispose(); cashChart?.dispose(); agingChart?.dispose()
 })
 function resizeCharts() {
-  profitChart?.resize(); cashChart?.resize(); agingChart?.resize()
+  if (profitChart && !profitChart.isDisposed()) profitChart.resize()
+  if (cashChart && !cashChart.isDisposed()) cashChart.resize()
+  if (agingChart && !agingChart.isDisposed()) agingChart.resize()
 }
 
 function compactMoney(value) {

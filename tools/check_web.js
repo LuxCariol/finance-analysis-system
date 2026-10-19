@@ -88,6 +88,13 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 1200));
   const conversionText = await page.evaluate(() => document.body.innerText);
   console.log('conversion-page:', conversionText.includes('转换结果') && conversionText.includes('标准编码') ? 'PASS' : 'FAIL');
+  await page.evaluate(() => {
+    const item = [...document.querySelectorAll('.el-menu-item')].find(node => node.textContent.trim() === '经营驾驶舱');
+    item?.click();
+  });
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  const canvasCount = await page.$$eval('canvas', nodes => nodes.length);
+  console.log('dashboard-charts-return:', canvasCount >= 2 ? 'PASS' : `FAIL (canvas=${canvasCount})`);
   await page.screenshot({
     path: path.join(__dirname, 'web-report.png'),
     fullPage: true
