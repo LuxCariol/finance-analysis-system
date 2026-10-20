@@ -1,0 +1,40 @@
+﻿金融财务分析系统 三人分工提交包
+
+提交成员：成员1_后端与数据库
+负责模块：后端与数据库
+
+一、本包内容
+文件：
+- README.md
+- backend/pom.xml
+- backend/src/main/resources/application.yml
+- tools/smoke_test.ps1
+- tools/sql_summary.py
+- tools/inspect_xlsx.py
+- tools/import_2020_data.ps1
+- tools/demo-check.ps1
+
+目录：
+- backend/src/main/java
+- backend/src/main/resources/mapper
+- backend/src/main/resources/demo-data
+- sql
+
+二、合并方式
+三个成员包的目录结构保持一致，合并时直接把三个包中的 backend、web、mobile、sql、tools、docs、demo-files 目录合并到同一个项目根目录即可。
+
+三、验证命令
+成员1：mvn -B -DskipTests package，然后运行 tools/smoke_test.ps1
+成员2：浏览器打开 /web/ 或 /console/，使用 root / 123456 登录检查管理端
+成员3：node tools/check_vue.js，再用 HBuilderX 运行 mobile 工程
+
+四、说明
+本包不包含 node_modules、unpackage、target、.idea 等生成或本机文件。
+Git 提交统一使用成员1账号，仓库作者字段不代表个人工作量。
+
+五、Git 分支提交建议
+git checkout -b member1-backend
+git add .
+git commit -m "feat: submit 后端与数据库 part"
+git push origin member1-backend
+三个成员分别推送分支后，由成员1合并到 main。
