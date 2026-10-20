@@ -1,6 +1,6 @@
 <template>
   <view class="page">
-    <AppHeader title="财经资讯" subtitle="企业经营与财务分析动态" eyebrow="INSIGHTS" back compact />
+    <AppHeader title="财经资讯" :back="true" />
     <view class="card" v-for="item in news" :key="item.id || item.ID">
       <view class="row">
         <text class="news-title">{{ item.title || item.TITLE }}</text>
@@ -29,7 +29,7 @@ export default {
 }
 </script>
 <style>
-.news-title { flex: 1; color: #22314a; font-size: 28rpx; font-weight: 600; line-height: 1.5; margin-right: 16rpx; }
-.news-content { display: block; margin-top: 14rpx; color: #6d7a8d; font-size: 22rpx; line-height: 1.75; }
-.news-foot { display: flex; justify-content: space-between; margin-top: 18rpx; color: #9aa5b4; font-size: 20rpx; }
+.news-title { flex: 1; color: #303133; font-size: 28rpx; font-weight: 500; line-height: 1.5; margin-right: 16rpx; }
+.news-content { display: block; margin-top: 14rpx; color: #666666; font-size: 24rpx; line-height: 1.75; }
+.news-foot { display: flex; justify-content: space-between; margin-top: 18rpx; color: #999999; font-size: 21rpx; }
 </style>

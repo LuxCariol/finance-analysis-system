@@ -1,35 +1,142 @@
 <template>
-  <view class="page">
-    <AppHeader title="利润表明细" :subtitle="periodText(data.period)" eyebrow="INCOME STATEMENT" back compact />
-    <view class="card summary">
-      <view class="row">
-        <text class="muted">报表项目</text>
-        <text class="pill">{{ (data.items || []).length }} 项</text>
+  <view class="page no-tab profit-detail">
+    <AppHeader title="明细" :back="true">
+      <template #filters>
+        <FilterBar :year="year" :mode="mode" @mode-change="mode = $event" @year-change="changeYear" />
+      </template>
+    </AppHeader>
+    <view class="table">
+      <view class="table-head detail-head">
+        <view class="col-label">类目</view>
+        <view class="col-money">金额（万元）</view>
+        <view class="col-rate">同比</view>
+        <view class="col-rate">环比</view>
       </view>
-      <text class="summary-text">展示营业收入、营业成本、期间费用与利润形成过程，点击项目可查看月度趋势。</text>
+      <view v-for="item in rows" :key="item.field" class="table-row detail-row">
+        <view class="col-label label-cell">
+          <view v-if="item.field === 'YYLR'" class="row-bullet"></view>
+          <text>{{ item.name }}</text>
+        </view>
+        <view class="col-money money-cell">{{ numberText(item.value) }}</view>
+        <view class="col-rate rate-cell">{{ rateText(item.yoy) }}</view>
+        <view class="col-rate rate-cell">{{ rateText(item.mom) }}</view>
+      </view>
     </view>
-    <view class="card"><ReportItems :items="data.items || []" @select="openDetail" /></view>
+    <view v-if="!rows.length && !loading" class="placeholder">暂无利润表数据</view>
   </view>
 </template>
+
 <script>
 import AppHeader from '../../components/AppHeader.vue'
-import ReportItems from '../../components/ReportItems.vue'
+import FilterBar from '../../components/FilterBar.vue'
 import { get } from '../../common/request'
-import { periodText } from '../../common/format'
+
 export default {
-  components: { AppHeader, ReportItems },
-  data() { return { data: {}, periodText } },
-  onLoad() { this.load() },
+  components: { AppHeader, FilterBar },
+  data() {
+    return {
+      year: '2021',
+      mode: 'year',
+      loading: true,
+      rows: []
+    }
+  },
+  onLoad(options) {
+    if (options && options.year) this.year = options.year
+    this.load()
+  },
   methods: {
-    async load() { try { this.data = await get('/api/report/profit') } catch (e) { this.data = {} } },
-    openDetail(item) {
-      const code = item.CODE_NO || item.codeNo
-      if (code) uni.navigateTo({ url: '/pages/finance/detail?code=' + encodeURIComponent(code) })
+    async load() {
+      this.loading = true
+      try {
+        const data = await get('/api/finance/annual-profit', { year: this.year })
+        this.rows = (data.items || []).filter(item => item.field !== 'JLR')
+      } catch (error) {
+        this.rows = []
+      } finally {
+        this.loading = false
+      }
+    },
+    changeYear(year) {
+      this.year = year
+      this.load()
+    },
+    numberText(value) {
+      return Number(value || 0).toFixed(2)
+    },
+    rateText(value) {
+      const number = Number(value || 0)
+      return (number < 0 ? '-' : '') + Math.abs(number).toFixed(2) + '%'
     }
   }
 }
 </script>
+
 <style>
-.summary { background: linear-gradient(130deg, #fff, #eef7f6); }
-.summary-text { display: block; margin-top: 14rpx; color: #6b788b; font-size: 22rpx; line-height: 1.6; }
+.detail-head {
+  height: 76rpx;
+  font-size: 25rpx;
+  font-weight: 500;
+}
+
+.detail-row {
+  min-height: 66rpx;
+  font-size: 26rpx;
+}
+
+.col-label {
+  width: 48%;
+}
+
+.col-money {
+  width: 19%;
+  text-align: right;
+}
+
+.col-rate {
+  width: 16.5%;
+  text-align: right;
+}
+
+.col-rate:last-child {
+  width: 16.5%;
+  padding-right: 18rpx;
+}
+
+.detail-head .col-label {
+  padding-left: 0;
+  text-align: center;
+}
+
+.detail-head .col-money,
+.detail-head .col-rate {
+  padding-right: 8rpx;
+  text-align: center;
+}
+
+.label-cell {
+  min-width: 0;
+  padding-left: 48rpx;
+  display: flex;
+  align-items: center;
+}
+
+.row-bullet {
+  width: 10rpx;
+  height: 10rpx;
+  margin-left: -20rpx;
+  margin-right: 10rpx;
+  border-radius: 50%;
+  background: #3bbfe7;
+}
+
+.money-cell {
+  color: #303133;
+  font-family: "DIN Alternate", "Arial Narrow", Arial, sans-serif;
+}
+
+.rate-cell {
+  color: #303133;
+  font-family: "DIN Alternate", "Arial Narrow", Arial, sans-serif;
+}
 </style>

@@ -1,35 +1,89 @@
 <template>
-  <view class="page">
-    <AppHeader title="现金流量表明细" :subtitle="periodText(data.period)" eyebrow="CASH FLOW" back compact />
-    <view class="card summary">
-      <view class="row">
-        <text class="muted">报表项目</text>
-        <text class="pill">{{ (data.items || []).length }} 项</text>
+  <view class="page no-tab">
+    <AppHeader title="明细" :back="true">
+      <template #filters>
+        <FilterBar :year="year" :mode="mode" @mode-change="mode = $event" @year-change="changeYear" />
+      </template>
+    </AppHeader>
+    <view class="table">
+      <view class="table-head report-head">
+        <view class="report-label">类目</view>
+        <view class="report-value">金额（万元）</view>
       </view>
-      <text class="summary-text">按经营、投资和筹资活动展示现金流入流出，点击项目查看月度趋势。</text>
+      <view v-for="(item, index) in rows" :key="index" class="table-row report-row">
+        <view class="report-label">{{ item.CODE_NAME || item.codeName || item.CODE_NO || item.codeNo }}</view>
+        <view class="report-value money">{{ numberText(item.DATA_VALUE !== undefined ? item.DATA_VALUE : item.dataValue) }}</view>
+      </view>
     </view>
-    <view class="card"><ReportItems :items="data.items || []" @select="openDetail" /></view>
+    <view v-if="!rows.length && !loading" class="placeholder">暂无现金流量表数据</view>
   </view>
 </template>
+
 <script>
 import AppHeader from '../../components/AppHeader.vue'
-import ReportItems from '../../components/ReportItems.vue'
+import FilterBar from '../../components/FilterBar.vue'
 import { get } from '../../common/request'
-import { periodText } from '../../common/format'
+
 export default {
-  components: { AppHeader, ReportItems },
-  data() { return { data: {}, periodText } },
-  onLoad() { this.load() },
+  components: { AppHeader, FilterBar },
+  data() {
+    return { year: '2021', mode: 'year', loading: true, rows: [] }
+  },
+  onLoad(options) {
+    if (options && options.year) this.year = options.year
+    this.load()
+  },
   methods: {
-    async load() { try { this.data = await get('/api/report/cashflow') } catch (e) { this.data = {} } },
-    openDetail(item) {
-      const code = item.CODE_NO || item.codeNo
-      if (code) uni.navigateTo({ url: '/pages/finance/detail?code=' + encodeURIComponent(code) })
+    async load() {
+      this.loading = true
+      try {
+        const data = await get('/api/report/cashflow', { period: this.year + '12' })
+        this.rows = data.items || []
+      } catch (error) {
+        this.rows = []
+      } finally {
+        this.loading = false
+      }
+    },
+    changeYear(year) {
+      this.year = year
+      this.load()
+    },
+    numberText(value) {
+      return (Number(value || 0) / 10000).toFixed(2)
     }
   }
 }
 </script>
+
 <style>
-.summary { background: linear-gradient(130deg, #fff, #edf3fb); }
-.summary-text { display: block; margin-top: 14rpx; color: #6b788b; font-size: 22rpx; line-height: 1.6; }
+.report-head {
+  height: 76rpx;
+  font-size: 25rpx;
+}
+
+.report-row {
+  min-height: 66rpx;
+  font-size: 26rpx;
+}
+
+.report-label {
+  flex: 1;
+  padding-left: 36rpx;
+}
+
+.report-value {
+  width: 220rpx;
+  padding-right: 24rpx;
+  text-align: right;
+}
+
+.report-head .report-label {
+  padding-left: 0;
+  text-align: center;
+}
+
+.report-head .report-value {
+  text-align: center;
+}
 </style>

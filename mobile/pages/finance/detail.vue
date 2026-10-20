@@ -1,147 +1,268 @@
 <template>
-  <view class="page">
-    <AppHeader :title="title" :subtitle="subtitle" eyebrow="FINANCIAL DETAIL" back compact />
-    <view class="tabs">
-      <view class="tab" :class="{ active: mode === 'trend' }" @click="setMode('trend')">明细趋势</view>
-      <view class="tab" :class="{ active: mode === 'aging' }" @click="setMode('aging')">账龄分析</view>
-      <view class="tab" :class="{ active: mode === 'balance' }" @click="setMode('balance')">科目余额</view>
-    </view>
+  <view class="page no-tab detail-page">
+    <AppHeader :title="pageTitle" :back="true">
+      <template #filters>
+        <FilterBar :year="year" :mode="mode" @mode-change="mode = $event" @year-change="changeYear" />
+      </template>
+    </AppHeader>
 
-    <view v-if="mode === 'trend'">
-      <view class="card">
-        <view class="row">
-          <text class="card-title">{{ trend.name || code }}</text>
-          <text class="pill">{{ (trend.values || []).length }} 期</text>
+    <template v-if="modeName === 'aging'">
+      <view class="aging-summary">
+        <text class="summary-range">{{ data.periodStart || (year + '01') }}、{{ data.periodEnd || (year + '12') }} {{ data.title || '' }}</text>
+        <view class="total-line">
+          <text class="total-value money">{{ numberText(data.yearTotal) }}</text>
+          <text class="total-unit">万元</text>
         </view>
-        <LineChart :labels="trend.periods || []" :series="chartSeries" />
+        <text class="update-text">数据已更新 至时间：{{ data.period || (year + '12') }}</text>
       </view>
-      <view class="card">
-        <view class="row period-row">
-          <text class="muted">会计期间</text><text class="muted">金额（元）</text>
-        </view>
-        <view v-for="(period, index) in trend.periods || []" :key="index" class="period-row">
-          <text>{{ periodText(period) }}</text>
-          <text class="money">{{ money(trend.values ? trend.values[index] : 0) }}</text>
-        </view>
-        <EmptyState v-if="!(trend.periods || []).length" />
-      </view>
-    </view>
 
-    <view v-else-if="mode === 'aging'">
-      <view class="card">
-        <view class="row">
-          <text class="card-title">账龄结构</text>
-          <picker :range="agingTypes" range-key="name" @change="changeAging">
-            <view class="pill">{{ currentAgingName }} ▾</view>
-          </picker>
-        </view>
-        <BarChart :items="agingChart" />
+      <view class="aging-section-title">
+        <view class="aging-marker"></view>
+        <text>{{ data.title || '' }}变动</text>
       </view>
-      <view class="card">
-        <view class="row period-row"><text class="muted">核算项目</text><text class="muted">余额（元）</text></view>
-        <view v-for="(item, index) in aging.rows || []" :key="index" class="period-row">
-          <view>
-            <text class="account-name">{{ item.projectName }}</text>
-            <text class="account-code">{{ item.projectCode }}</text>
-          </view>
-          <text class="money">{{ money(item.balance) }}</text>
-        </view>
-        <EmptyState v-if="!(aging.rows || []).length" title="暂无账龄数据" desc="请先在后台导入对应账龄分析表" />
+      <view class="chart-caption">单位（万元）</view>
+      <view class="aging-chart">
+        <LineChart
+          v-if="chartLabels.length"
+          :labels="chartLabels"
+          :series="chartSeries"
+          :height="300"
+          :y-max="25"
+          :x-tick-count="5"
+          :highlight-max="true"
+        />
       </view>
-    </view>
 
-    <view v-else>
-      <view class="card">
-        <view class="row period-row">
-          <text class="muted">科目</text><text class="muted">期末余额（元）</text>
-        </view>
-        <view v-for="(item, index) in balances" :key="index" class="period-row">
-          <view>
-            <text class="account-name">{{ item.subjectName }}</text>
-            <text class="account-code">{{ item.subjectCode }}</text>
-          </view>
-          <text class="money">{{ money(item.qmjfye || item.qmdfye) }}</text>
-        </view>
-        <EmptyState v-if="!balances.length" title="暂无科目余额" desc="请先导入科目余额表" />
+      <view class="aging-section-title donut-title">
+        <view class="aging-marker"></view>
+        <text>各区间账龄占比（单位：万元）</text>
       </view>
-    </view>
+      <view class="donut-block">
+        <DonutChart :labels="donutLabels" :values="donutValues" />
+      </view>
+    </template>
+
+    <template v-else>
+      <view class="trend-summary">
+        <text class="trend-name">{{ trend.name || code }}</text>
+        <text class="trend-range">{{ year }}年 单位（万元）</text>
+      </view>
+      <view class="aging-chart">
+        <LineChart v-if="trend.labels && trend.labels.length" :labels="trend.labels" :series="trendSeries" :height="320" />
+        <view v-else class="placeholder">暂无趋势数据</view>
+      </view>
+    </template>
   </view>
 </template>
 
 <script>
 import AppHeader from '../../components/AppHeader.vue'
+import FilterBar from '../../components/FilterBar.vue'
 import LineChart from '../../components/LineChart.vue'
-import BarChart from '../../components/BarChart.vue'
-import EmptyState from '../../components/EmptyState.vue'
+import DonutChart from '../../components/DonutChart.vue'
 import { get } from '../../common/request'
-import { money, periodText } from '../../common/format'
 
 export default {
-  components: { AppHeader, LineChart, BarChart, EmptyState },
+  components: { AppHeader, FilterBar, LineChart, DonutChart },
   data() {
     return {
+      modeName: 'aging',
+      agingType: 4,
       code: 'ZCFZ-G',
-      mode: 'trend',
-      trend: {},
-      aging: {},
-      balances: [],
-      agingType: 7,
-      agingTypes: [
-        { value: 3, name: '其他应付' }, { value: 4, name: '其他应收' },
-        { value: 5, name: '应付账款' }, { value: 6, name: '应收账款' },
-        { value: 7, name: '预付账款' }, { value: 8, name: '预收账款' }
-      ],
-      periodText,
-      money
+      year: '2021',
+      mode: 'year',
+      data: {},
+      trend: {}
     }
   },
   computed: {
-    title() { return this.mode === 'aging' ? '账龄与科目详情' : this.trend.name || '财务数据详情' },
-    subtitle() { return this.mode === 'trend' ? (this.code + ' · 月度变化') : '往来款与科目余额' },
-    chartSeries() { return [{ name: this.trend.name || this.code, values: this.trend.values || [] }] },
-    currentAgingName() { return (this.agingTypes.find(item => item.value === this.agingType) || {}).name || '选择类型' },
-    agingChart() {
-      const summary = this.aging.summary || {}
-      return (summary.labels || []).map((label, index) => ({ label, value: (summary.values || [])[index] }))
+    pageTitle() {
+      return this.modeName === 'aging' ? (this.data.title || '账龄分析') : (this.trend.name || '数据详情')
+    },
+    chartLabels() {
+      return this.data.trendPeriods || []
+    },
+    chartSeries() {
+      return [
+        { name: '本期', values: this.data.trendValues || [] },
+        { name: '上期', values: this.data.previousTrendValues || [] }
+      ]
+    },
+    donutLabels() {
+      const labels = (this.data.summary || {}).labels || []
+      return labels.slice(0, 3).map(label => String(label).replace('-', '到'))
+    },
+    donutValues() {
+      const values = (this.data.summary || {}).values || []
+      return values.slice(0, 3)
+    },
+    trendSeries() {
+      return [{ name: this.trend.name || this.code, values: this.trend.values || [] }]
     }
   },
   onLoad(options) {
-    if (options.code) this.code = options.code
-    if (options.type === 'aging') this.mode = 'aging'
+    if (options) {
+      if (options.type === 'aging' || options.agingType) this.modeName = 'aging'
+      if (options.agingType) this.agingType = Number(options.agingType)
+      if (options.type && options.type !== 'aging' && options.type !== 'trend') {
+        this.modeName = 'aging'
+        this.agingType = Number(options.type)
+      }
+      if (options.year) this.year = options.year
+      if (options.code) this.code = decodeURIComponent(options.code)
+    }
     this.load()
   },
   methods: {
     async load() {
-      if (this.mode === 'trend') {
-        try { this.trend = await get('/api/finance/detail/chart', { code: this.code }) } catch (e) { this.trend = {} }
-      } else if (this.mode === 'aging') {
-        await this.loadAging()
-      } else {
-        await this.loadBalance()
+      try {
+        if (this.modeName === 'aging') {
+          this.data = await get('/api/finance/aging', {
+            type: this.agingType,
+            period: this.year + '12'
+          })
+        } else {
+          const result = await get('/api/finance/detail/chart', { code: this.code })
+          this.trend = {
+            ...result,
+            labels: result.periods || [],
+            values: (result.values || []).map(value => Number(value || 0))
+          }
+        }
+      } catch (error) {
+        this.data = {}
+        this.trend = {}
       }
     },
-    async loadAging() {
-      try { this.aging = await get('/api/finance/aging', { type: this.agingType }) } catch (e) { this.aging = {} }
+    changeYear(year) {
+      this.year = year
+      this.load()
     },
-    async loadBalance() {
-      try {
-        const data = await get('/api/report/account-balance')
-        this.balances = data.items || []
-      } catch (e) { this.balances = [] }
-    },
-    setMode(mode) { this.mode = mode; this.load() },
-    changeAging(event) { this.agingType = this.agingTypes[event.detail.value].value; this.loadAging() }
+    numberText(value) {
+      return Number(value || 0).toFixed(2)
+    }
   }
 }
 </script>
 
 <style>
-.tabs { display: flex; background: #fff; padding: 8rpx; border-radius: 18rpx; margin-bottom: 22rpx; }
-.tab { flex: 1; text-align: center; padding: 18rpx 0; font-size: 24rpx; color: #7b8798; border-radius: 13rpx; }
-.tab.active { background: #12233f; color: #fff; }
-.card-title { font-size: 29rpx; font-weight: 600; color: #22314a; }
-.period-row { display: flex; justify-content: space-between; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #f1f3f6; font-size: 23rpx; color: #56657a; }
-.period-row:last-child { border-bottom: none; }
-.account-name { display: block; color: #33445d; font-size: 23rpx; }
-.account-code { display: block; margin-top: 4rpx; color: #a0a9b6; font-size: 19rpx; }
+.detail-page {
+  background: #ffffff;
+}
+
+.aging-summary {
+  padding: 24rpx 24rpx 28rpx;
+  text-align: center;
+  background: #ffffff;
+}
+
+.summary-range {
+  display: block;
+  color: #666666;
+  font-size: 27rpx;
+  line-height: 38rpx;
+}
+
+.total-line {
+  margin-top: 10rpx;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+}
+
+.total-value {
+  color: #303133;
+  font-size: 48rpx;
+  font-weight: 600;
+}
+
+.total-unit {
+  margin-left: 8rpx;
+  color: #303133;
+  font-size: 28rpx;
+}
+
+.update-text {
+  display: block;
+  margin-top: 8rpx;
+  color: #999999;
+  font-size: 22rpx;
+}
+
+.aging-section-title {
+  height: 70rpx;
+  padding-left: 12rpx;
+  display: flex;
+  align-items: center;
+  background: #f0f8ff;
+  color: #303133;
+  font-size: 27rpx;
+  border-top: 1rpx solid #f0f8ff;
+  border-bottom: 1rpx solid #f0f8ff;
+}
+
+.aging-marker {
+  width: 18rpx;
+  height: 32rpx;
+  margin-right: 8rpx;
+  position: relative;
+}
+
+.aging-marker::before,
+.aging-marker::after {
+  content: "";
+  position: absolute;
+  left: 1rpx;
+  width: 7rpx;
+  height: 20rpx;
+  border-radius: 2rpx;
+  background: #3bbfe7;
+  transform: skewX(-24deg);
+}
+
+.aging-marker::before {
+  top: 1rpx;
+}
+
+.aging-marker::after {
+  top: 14rpx;
+}
+
+.chart-caption {
+  padding: 16rpx 26rpx 0;
+  color: #666666;
+  font-size: 23rpx;
+  background: #ffffff;
+}
+
+.aging-chart {
+  padding: 6rpx 20rpx 12rpx;
+  background: #ffffff;
+}
+
+.donut-title {
+  margin-top: 14rpx;
+}
+
+.donut-block {
+  padding: 12rpx 14rpx 30rpx;
+  background: #ffffff;
+}
+
+.trend-summary {
+  padding: 30rpx 24rpx 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trend-name {
+  font-size: 30rpx;
+  color: #303133;
+}
+
+.trend-range {
+  font-size: 23rpx;
+  color: #999999;
+}
 </style>

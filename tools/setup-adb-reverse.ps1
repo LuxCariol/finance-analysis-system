@@ -3,10 +3,14 @@ param(
 )
 
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$adb = Join-Path $root 'tools\adb\adb\adb.exe'
+$adbCandidates = @(
+    'D:\Takagi_apps\HBuilderX\plugins\launcher-tools\tools\adbs\adb.exe',
+    (Join-Path $root 'tools\adb\adb\adb.exe')
+)
+$adb = $adbCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
-if (-not (Test-Path -LiteralPath $adb)) {
-    throw "adb.exe not found: $adb"
+if (-not $adb) {
+    throw 'adb.exe not found. Install Android platform-tools or HBuilderX first.'
 }
 
 $devices = & $adb devices

@@ -13,3 +13,5 @@ backend/src/main/resources/ace/
 backend/src/main/resources/js/
 mobile/unpackage/
 mobile/.hbuilderx/
+unpackage/
+__pycache__/

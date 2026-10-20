@@ -1,0 +1,43 @@
+﻿金融财务分析系统 三人分工提交包
+
+提交成员：成员3_移动端与测试文档
+负责模块：移动端与测试文档
+
+一、本包内容
+文件：
+- README.md
+- tools/check_vue.js
+- tools/mobile_audit.js
+- tools/build_mobile_audit_docx.py
+- tools/split_three_submissions.py
+- tools/setup-adb-reverse.ps1
+- tools/set-mobile-api.ps1
+- tools/open-firewall-8006.ps1
+- tools/ocr_images.ps1
+- tools/make_github_commits.ps1
+- tools/current.xml
+
+目录：
+- mobile
+- docs
+- demo-files
+- deliverables/移动端开发阶段检查_Word版
+
+二、合并方式
+三个成员包的目录结构保持一致，合并时直接把三个包中的 backend、web、mobile、sql、tools、docs、demo-files 目录合并到同一个项目根目录即可。
+
+三、验证命令
+成员1：mvn -B -DskipTests package，然后运行 tools/smoke_test.ps1
+成员2：浏览器打开 /web/ 或 /console/，使用 root / 123456 登录检查管理端
+成员3：node tools/check_vue.js，再用 HBuilderX 运行 mobile 工程
+
+四、说明
+本包不包含 node_modules、unpackage、target、.idea 等生成或本机文件。
+Git 提交统一使用成员1账号，仓库作者字段不代表个人工作量。
+
+五、Git 分支提交建议
+git checkout -b member3-mobile-docs
+git add .
+git commit -m "feat: submit 移动端与测试文档 part"
+git push origin member3-mobile-docs
+三个成员分别推送分支后，由成员1合并到 main。

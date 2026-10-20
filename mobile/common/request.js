@@ -1,10 +1,15 @@
 import { API_BASE } from './config'
 
+export function getApiBase() {
+  const saved = uni.getStorageSync('finance_api_base_v2')
+  return String(saved || API_BASE).replace(/\/+$/, '')
+}
+
 export function request(options) {
   const token = uni.getStorageSync('finance_token')
   return new Promise((resolve, reject) => {
     uni.request({
-      url: API_BASE + options.url,
+      url: getApiBase() + options.url,
       method: options.method || 'GET',
       data: options.data || {},
       header: {

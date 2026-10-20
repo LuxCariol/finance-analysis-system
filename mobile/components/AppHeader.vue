@@ -1,100 +1,105 @@
 <template>
-  <view class="header" :class="{ compact }">
-    <view class="header-glow"></view>
-    <view class="header-row">
-      <view v-if="back" class="back" @click="goBack">‹</view>
-      <view class="titles">
-        <text class="eyebrow">{{ eyebrow }}</text>
-        <text class="title">{{ title }}</text>
-        <text v-if="subtitle" class="subtitle">{{ subtitle }}</text>
+  <view class="app-header">
+    <view class="status-space"></view>
+    <view class="title-row">
+      <view class="back" :class="{ invisible: !back }" @click="goBack">
+        <text class="back-arrow">‹</text>
       </view>
-      <view class="right"><slot name="right"></slot></view>
+      <text class="title">{{ title }}</text>
+      <view class="right-slot"><slot name="right"></slot></view>
     </view>
+    <view v-if="hasFilters" class="filter-slot"><slot name="filters"></slot></view>
+    <view v-if="hasTabs" class="tab-slot"><slot name="tabs"></slot></view>
   </view>
 </template>
 
 <script>
 export default {
   props: {
-    title: String,
-    subtitle: String,
-    eyebrow: { type: String, default: 'FINANCIAL INSIGHT' },
-    back: Boolean,
-    compact: Boolean
+    title: { type: String, default: '' },
+    back: { type: Boolean, default: false }
+  },
+  computed: {
+    hasFilters() {
+      return !!((this.$slots && this.$slots.filters) || (this.$scopedSlots && this.$scopedSlots.filters))
+    },
+    hasTabs() {
+      return !!((this.$slots && this.$slots.tabs) || (this.$scopedSlots && this.$scopedSlots.tabs))
+    }
   },
   methods: {
     goBack() {
-      uni.navigateBack({ delta: 1 })
+      if (!this.back) return
+      const pages = getCurrentPages()
+      if (pages.length > 1) {
+        uni.navigateBack({ delta: 1 })
+      } else {
+        uni.reLaunch({ url: '/pages/home/home' })
+      }
     }
   }
 }
 </script>
 
 <style>
-.header {
-  position: relative;
-  overflow: hidden;
-  margin: 0 -28rpx 26rpx;
-  padding: calc(var(--status-bar-height) + 28rpx) 32rpx 38rpx;
-  background: linear-gradient(142deg, #12233f 0%, #18365e 58%, #0d6a68 100%);
-  color: #fff;
+.app-header {
+  background: #3bbfe7;
+  color: #ffffff;
 }
 
-.header.compact {
-  padding-top: calc(var(--status-bar-height) + 18rpx);
-  padding-bottom: 28rpx;
+.status-space {
+  height: calc(var(--status-bar-height) + 8rpx);
+  min-height: 48rpx;
 }
 
-.header-glow {
-  position: absolute;
-  width: 360rpx;
-  height: 360rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(35, 189, 178, 0.28), rgba(35, 189, 178, 0));
-  right: -120rpx;
-  top: -160rpx;
-}
-
-.header-row {
-  position: relative;
+.title-row {
+  height: 82rpx;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  padding: 0 20rpx;
+  position: relative;
 }
 
 .back {
-  width: 58rpx;
-  font-size: 54rpx;
-  line-height: 1;
-  margin-top: 2rpx;
-}
-
-.titles {
-  flex: 1;
+  width: 64rpx;
+  height: 82rpx;
   display: flex;
-  flex-direction: column;
+  align-items: center;
 }
 
-.eyebrow {
-  font-size: 18rpx;
-  letter-spacing: 4rpx;
-  opacity: 0.55;
+.back.invisible {
+  visibility: hidden;
+}
+
+.back-arrow {
+  font-family: Arial, sans-serif;
+  font-size: 58rpx;
+  line-height: 1;
+  color: #ffffff;
+  font-weight: 300;
 }
 
 .title {
-  margin-top: 10rpx;
-  font-size: 40rpx;
-  font-weight: 700;
+  flex: 1;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 500;
   letter-spacing: 1rpx;
+  color: #ffffff;
 }
 
-.subtitle {
-  margin-top: 10rpx;
-  font-size: 23rpx;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.72);
+.right-slot {
+  width: 64rpx;
+  min-height: 40rpx;
+  text-align: right;
+  font-size: 24rpx;
 }
 
-.right {
-  margin-left: 16rpx;
+.filter-slot {
+  padding: 0 24rpx 8rpx;
+}
+
+.tab-slot {
+  padding: 0 10rpx;
 }
 </style>

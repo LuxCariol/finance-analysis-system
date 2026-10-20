@@ -1,125 +1,177 @@
 <template>
-  <view class="page">
-    <AppHeader title="损益表预测" subtitle="基于历史趋势的滚动预测" eyebrow="PROFIT FORECAST">
-      <template #right>
-        <view class="news-btn" @click="goInvestment">投资预测</view>
+  <view class="page forecast-page">
+    <AppHeader title="预测">
+      <template #filters>
+        <view class="forecast-filter">
+          <view class="forecast-filter-left">
+            <text>起始年度</text>
+            <text class="unit-text">单位：万元</text>
+          </view>
+          <picker mode="selector" :range="yearOptions" :value="yearIndex" @change="changeStartYear">
+            <view class="start-year">{{ startYear }}</view>
+          </picker>
+        </view>
+      </template>
+      <template #tabs>
+        <TopTabs :tabs="tabs" :active="active" @change="changeTab" />
       </template>
     </AppHeader>
 
-    <view class="card control">
-      <view class="control-row">
-        <text class="label">预测月数</text>
-        <view class="stepper">
-          <view class="step" @click="changeMonths(-1)">−</view>
-          <text>{{ months }}</text>
-          <view class="step" @click="changeMonths(1)">＋</view>
+    <view class="table forecast-table">
+      <view class="forecast-head">
+        <view class="forecast-label"></view>
+        <view v-for="year in years" :key="year" class="forecast-year">{{ year }}</view>
+      </view>
+      <view v-for="row in rows" :key="row.name" class="forecast-row">
+        <view class="forecast-label">{{ row.name }}</view>
+        <view v-for="(value, index) in row.values" :key="index" class="forecast-value money">
+          {{ numberText(value) }}
         </view>
       </view>
-      <view class="control-row">
-        <text class="label">增长调整幅度</text>
-        <view class="growth">
-          <input v-model="growth" type="digit" class="growth-input" />
-          <text>%</text>
-        </view>
-      </view>
-      <view class="btn-primary" @click="runForecast">{{ loading ? '计算中…' : '生成预测' }}</view>
     </view>
-
-    <view v-if="data.forecast" class="card">
-      <view class="row">
-        <text class="card-title">收入趋势与预测</text>
-        <text class="pill">{{ data.confidence }}置信度</text>
-      </view>
-      <LineChart :labels="chartLabels" :series="chartSeries" />
-    </view>
-
-    <view v-if="data.forecast" class="card">
-      <view class="row period-row">
-        <text class="muted">期间</text><text class="muted">收入</text><text class="muted">净利润</text>
-      </view>
-      <view v-for="(row, index) in data.forecast" :key="index" class="period-row">
-        <text>{{ periodText(row.period) }}</text>
-        <text class="money">{{ compactMoney(row.revenue) }}</text>
-        <text class="money">{{ compactMoney(row.netProfit) }}</text>
-      </view>
-    </view>
-
-    <view class="card method" v-if="data.method">
-      <text class="method-title">预测方法</text>
-      <text class="method-text">{{ data.method }}。{{ data.note }}</text>
-    </view>
-
-    <view class="card invest-entry" @click="goInvestment">
-      <view>
-        <text class="invest-title">资本投资测算</text>
-        <text class="invest-sub">计算 NPV、IRR、回收期与全资本现金流</text>
-      </view>
-      <text class="invest-arrow">›</text>
-    </view>
+    <view v-if="!rows.length && !loading" class="placeholder">暂无预测数据</view>
+    <BottomNav active="forecast" />
   </view>
 </template>
 
 <script>
 import AppHeader from '../../components/AppHeader.vue'
-import LineChart from '../../components/LineChart.vue'
+import TopTabs from '../../components/TopTabs.vue'
+import BottomNav from '../../components/BottomNav.vue'
 import { get } from '../../common/request'
-import { compactMoney, periodText } from '../../common/format'
 
 export default {
-  components: { AppHeader, LineChart },
+  components: { AppHeader, TopTabs, BottomNav },
   data() {
-    return { months: 6, growth: 0, data: {}, loading: false, periodText, compactMoney }
-  },
-  computed: {
-    chartLabels() {
-      return [...(this.data.historyPeriods || []), ...(this.data.forecastPeriods || [])]
-    },
-    chartSeries() {
-      return [{
-        name: '营业收入',
-        values: [...(this.data.historyRevenue || []), ...(this.data.forecastRevenue || [])]
-      }]
+    return {
+      active: 'profit',
+      startYear: '2022',
+      yearOptions: ['2022', '2023', '2024'],
+      years: ['2022', '2023', '2024'],
+      rows: [],
+      loading: true,
+      tabs: [
+        { key: 'profit', label: '损益表预测' },
+        { key: 'investment', label: '投资预测' }
+      ]
     }
   },
-  onShow() { this.runForecast() },
+  computed: {
+    yearIndex() {
+      const index = this.yearOptions.indexOf(String(this.startYear))
+      return index < 0 ? 0 : index
+    }
+  },
+  onShow() {
+    this.load()
+  },
   methods: {
-    changeMonths(delta) {
-      this.months = Math.max(1, Math.min(12, this.months + delta))
-    },
-    async runForecast() {
+    async load() {
       this.loading = true
       try {
-        this.data = await get('/api/forecast/profit', { months: this.months, growthAdjustment: this.growth })
-      } catch (e) {
-        this.data = {}
+        const data = await get('/api/forecast/annual-profit', { startYear: this.startYear, years: 3 })
+        this.years = data.years || []
+        this.rows = data.rows || []
+      } catch (error) {
+        this.rows = []
       } finally {
         this.loading = false
       }
     },
-    goInvestment() { uni.navigateTo({ url: '/pages/investment/index' }) }
+    changeStartYear(event) {
+      this.startYear = this.yearOptions[Number(event.detail.value)] || this.yearOptions[0]
+      this.load()
+    },
+    changeTab(tab) {
+      if (tab === 'investment') {
+        uni.navigateTo({ url: '/pages/investment/index' })
+      } else {
+        this.active = tab
+      }
+    },
+    numberText(value) {
+      return Number(value || 0).toFixed(2)
+    }
   }
 }
 </script>
 
 <style>
-.news-btn { padding: 8rpx 20rpx; border: 1rpx solid rgba(255,255,255,0.3); border-radius: 999rpx; font-size: 22rpx; color: rgba(255,255,255,0.85); }
-.control-row { display: flex; align-items: center; justify-content: space-between; padding: 12rpx 0 24rpx; }
-.label { font-size: 25rpx; color: #607086; }
-.stepper { display: flex; align-items: center; background: #f2f5f9; border-radius: 14rpx; padding: 4rpx; }
-.step { width: 56rpx; height: 52rpx; line-height: 52rpx; text-align: center; color: #0d7c78; font-size: 30rpx; background: #fff; border-radius: 11rpx; }
-.stepper text { width: 64rpx; text-align: center; font-size: 25rpx; font-weight: 600; }
-.growth { display: flex; align-items: center; color: #6b788b; font-size: 24rpx; }
-.growth-input { width: 110rpx; height: 58rpx; line-height: 58rpx; text-align: right; border-bottom: 1rpx solid #d8e0e8; margin-right: 8rpx; color: #1e2c43; }
-.card-title { font-size: 29rpx; font-weight: 600; color: #22314a; }
-.period-row { display: flex; justify-content: space-between; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #f1f3f6; font-size: 22rpx; color: #56657a; }
-.period-row text { flex: 1; }
-.period-row text:nth-child(2), .period-row text:nth-child(3) { text-align: right; }
-.period-row:last-child { border-bottom: none; }
-.method { background: #f4f8f7; }
-.method-title { font-size: 25rpx; color: #0d7c78; font-weight: 600; }
-.method-text { display: block; margin-top: 10rpx; color: #647383; font-size: 21rpx; line-height: 1.65; }
-.invest-entry { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(120deg, #fff, #f8f0df); }
-.invest-title { font-size: 28rpx; font-weight: 600; color: #24324a; }
-.invest-sub { display: block; margin-top: 8rpx; color: #8a96a7; font-size: 21rpx; }
-.invest-arrow { font-size: 44rpx; color: #c9a45d; }
+.forecast-page {
+  background: #ffffff;
+}
+
+.forecast-filter {
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
+.forecast-filter-left {
+  display: flex;
+  align-items: baseline;
+}
+
+.unit-text {
+  margin-left: 26rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.start-year {
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
+.forecast-table {
+  background: #ffffff;
+}
+
+.forecast-head {
+  height: 100rpx;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 20rpx;
+  color: #303133;
+  font-size: 25rpx;
+  background: #ffffff;
+}
+
+.forecast-label {
+  width: 31%;
+  padding-left: 40rpx;
+}
+
+.forecast-year {
+  width: 23%;
+  text-align: center;
+}
+
+.forecast-row {
+  height: 78rpx;
+  display: flex;
+  align-items: center;
+  border-bottom: 1rpx solid #f1f1f1;
+  color: #303133;
+  font-size: 26rpx;
+}
+
+.forecast-row:last-child {
+  border-bottom: none;
+}
+
+.forecast-value {
+  width: 23%;
+  padding-right: 18rpx;
+  text-align: right;
+  color: #303133;
+  font-size: 25rpx;
+}
+
+.forecast-head .forecast-label {
+  padding-left: 0;
+}
 </style>
