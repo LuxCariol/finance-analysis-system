@@ -106,10 +106,13 @@ public class ReportController {
         return "admin/jsp/report/bulkImportIndex";
     }
 
-    @GetMapping("/tReportResultIndex")
+    @GetMapping({"/tReportResultIndex", "/result/index"})
     public String resultIndex(Model model) {
-        reportMenu(model, 312);
-        breadcrumb(model, "编码与算法", "数据转换");
+        model.addAttribute("menuInitList", menuService.tree(true));
+        model.addAttribute("fatherMenuId", 175);
+        model.addAttribute("menuId", 197);
+        model.addAttribute("buttonList", menuService.buttons(197));
+        breadcrumb(model, "模型管理", "数据转换");
         return "admin/jsp/report/tReportResultIndex";
     }
 
@@ -445,19 +448,49 @@ public class ReportController {
     @GetMapping("/result/list")
     public String resultList(@RequestParam(value = "pageNow", defaultValue = "1") int pageNow,
                              @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                             @RequestParam(value = "reportType", required = false) String reportType,
                              Model model) {
-        PageData<Map<String, Object>> page = pageSupport.page(
-                "SELECT r.*, c.CODE_NAME FROM t_report_result r LEFT JOIN t_code_libr c ON c.CODE_NO=r.CODE_NO "
-                        + "ORDER BY r.RYEAR_AND_MONTH DESC, r.CODE_NO",
-                "SELECT COUNT(*) FROM t_report_result", pageNow, pageSize);
-        putPage(model, page);
-        model.addAttribute("tReportResultList", page.getList());
+        addResultPage(model, pageNow, pageSize, reportType);
         return "admin/jsp/report/tReportResultList";
     }
 
     @GetMapping("/result/buttonList")
-    public String resultButtons(Model model) {
-        model.addAttribute("buttonList", menuService.buttons(312));
+    public String resultButtons(@RequestParam(value = "pageNow", defaultValue = "1") int pageNow,
+                                @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                @RequestParam(value = "reportType", required = false) String reportType,
+                                Model model) {
+        model.addAttribute("buttonList", menuService.buttons(197));
+        addResultPage(model, pageNow, pageSize, reportType);
         return "admin/jsp/report/tReportResultListAndButtonList";
+    }
+
+    private void addResultPage(Model model, int pageNow, int pageSize, String reportType) {
+        String prefix = resultPrefix(reportType);
+        String where = prefix == null ? "" : " WHERE r.CODE_NO LIKE ?";
+        Object[] args = prefix == null ? new Object[]{} : new Object[]{prefix + "%"};
+        PageData<Map<String, Object>> page = pageSupport.page(
+                "SELECT r.*, c.CODE_NAME FROM t_report_result r LEFT JOIN t_code_libr c ON c.CODE_NO=r.CODE_NO "
+                        + where + " ORDER BY r.RYEAR_AND_MONTH DESC, r.CODE_NO",
+                "SELECT COUNT(*) FROM t_report_result r" + where, pageNow, pageSize, args);
+        putPage(model, page);
+        model.addAttribute("tReportResultList", page.getList());
+    }
+
+    private String resultPrefix(String reportType) {
+        if (reportType == null || reportType.trim().isEmpty()) {
+            return null;
+        }
+        switch (reportType.trim()) {
+            case "1":
+                return "ZCFZ-";
+            case "2":
+                return "LR-";
+            case "3":
+                return "XJLL-";
+            case "5":
+                return "BL-";
+            default:
+                return null;
+        }
     }
 }
