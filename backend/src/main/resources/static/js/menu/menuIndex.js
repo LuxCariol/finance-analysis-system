@@ -12,7 +12,7 @@ $(function() {
 		url : rootPath+'/admin/pc/resources/menuList',
 		data: parm,
 		success:function(data){
-			$("#menuList").html(data);  
+			$("#menuDetail").html(data);  
 		},
 		error: function (msg) {//ajax请求失败后触发的方法
 			console.log(msg);//弹出错误信息
